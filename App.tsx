@@ -22,6 +22,8 @@ const App: React.FC = () => {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [editors, setEditors] = useState<Editor[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [importCount, setImportCount] = useState<number | null>(null);
+
   const [settings, setSettings] = useState<WorkspaceSettings>(() => {
     const saved = localStorage.getItem(`settings_${workspaceId}`);
     return saved ? JSON.parse(saved) : {
@@ -36,13 +38,23 @@ const App: React.FC = () => {
 
   const isSyncing = useRef(false);
 
-  // --- 標準化日期函數：處理 2026/1/1 -> 2026-01-01 ---
+  // --- 超級日期正規化：處理 2026/1/1 -> 2026-01-01 ---
   const normalizeDate = (dateStr: string): string => {
-    if (!dateStr) return new Date().toISOString().split('T')[0];
-    const parts = dateStr.split(/[\/\-]/);
+    if (!dateStr) return '';
+    // 移除可能的時間部分 (例如 2026/1/1 00:00:00 -> 2026/1/1)
+    const pureDate = dateStr.trim().split(/\s+/)[0];
+    const parts = pureDate.split(/[\/\-.]/);
+    
     if (parts.length === 3) {
-      let [y, m, d] = parts;
-      // 確保是 YYYY-MM-DD
+      let y = parts[0];
+      let m = parts[1];
+      let d = parts[2];
+      
+      // 處理 DD/MM/YYYY 的情況（如果年份在最後面）
+      if (y.length !== 4 && d.length === 4) {
+        [y, d] = [d, y];
+      }
+      
       if (y.length === 4) {
         return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
       }
@@ -95,12 +107,12 @@ const App: React.FC = () => {
       const rawRows = parseCSV(csvData);
       
       if (rawRows.length === 0) {
+        setImportCount(0);
         setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
         return false;
       }
 
       const mappedTasks: Task[] = rawRows.map((row, idx) => {
-        // 欄位匹配優化：支援空格處理
         const getCol = (names: string[]) => {
           const key = Object.keys(row).find(k => names.includes(k.trim()));
           return key ? row[key] : null;
@@ -110,8 +122,8 @@ const App: React.FC = () => {
         const show = getCol(['節目', 'Show']) || 'Unknown';
         const episode = getCol(['集數', 'Episode']) || 'N/A';
         const editor = getCol(['剪輯師', 'Editor']) || 'James';
-        const startDateRaw = getCol(['開始日', 'StartDate']) || '';
-        const endDateRaw = getCol(['交播日', 'EndDate']) || '';
+        const startDateRaw = getCol(['開始日', 'StartDate', '開始日期']) || '';
+        const endDateRaw = getCol(['交播日', 'EndDate', '交播日期']) || '';
         const notes = getCol(['備註', 'Notes']) || '';
 
         return {
@@ -128,6 +140,7 @@ const App: React.FC = () => {
       });
 
       setTasks(mappedTasks);
+      setImportCount(mappedTasks.length);
       setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
       
       const cloudKey = `cloud_db_${workspaceId}`;
@@ -155,6 +168,7 @@ const App: React.FC = () => {
     if (savedData) {
       const parsed = JSON.parse(savedData);
       setTasks(parsed.tasks || []);
+      if (parsed.tasks) setImportCount(parsed.tasks.length);
     }
 
     if (settings.googleSheetId) {
@@ -207,6 +221,7 @@ const App: React.FC = () => {
           syncStatus={settings.syncStatus}
           lastSyncedAt={settings.lastSyncedAt}
           onRefresh={() => importFromGoogleSheets(settings.googleSheetId || '')}
+          importCount={importCount}
         />
         
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>

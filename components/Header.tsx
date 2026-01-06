@@ -17,6 +17,7 @@ interface Props {
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
   lastSyncedAt?: string;
   onRefresh?: () => void;
+  importCount?: number | null;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -30,7 +31,8 @@ const Header: React.FC<Props> = ({
   editors, 
   syncStatus,
   lastSyncedAt,
-  onRefresh
+  onRefresh,
+  importCount
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,7 @@ const Header: React.FC<Props> = ({
       default: 
         return { 
           icon: <Wifi size={12} className="text-emerald-500" />, 
-          text: 'Google Sheet 連動中',
+          text: importCount !== null ? `已同步 ${importCount} 筆` : 'Google Sheet 已連線',
           color: 'bg-emerald-500'
         };
     }
