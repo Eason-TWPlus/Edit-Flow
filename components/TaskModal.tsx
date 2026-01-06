@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Task, Program, Editor, TaskStatus, TaskPhase } from '../types';
+import { Task, Program, Editor, TaskStatus, TaskPhase } from '../types.ts';
 import { X, Trash2, Calendar, Layout, User, ChevronLeft, Clock, ShieldCheck, Activity, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
@@ -119,7 +119,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               </select>
             </div>
 
-            {/* 新增：狀態選擇 */}
             <div>
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
                 <Activity size={12} /> <span>當前狀態</span>
@@ -136,7 +135,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               </select>
             </div>
 
-            {/* 新增：階段選擇 */}
             <div>
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
                 <Layers size={12} /> <span>製作階段</span>

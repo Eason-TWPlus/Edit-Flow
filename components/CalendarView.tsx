@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Task, Editor } from '../types';
+import { Task, Editor } from '../types.ts';
 import { 
   format, endOfMonth, eachDayOfInterval, 
   isSameDay, addMonths, isToday, 
@@ -45,7 +45,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
     return rows;
   }, [weeks]);
 
-  // 檢查目前月份是否有任務
   const currentMonthTasks = useMemo(() => {
     const start = startOfMonth(currentDate);
     const end = endOfMonth(currentDate);
@@ -58,7 +57,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
     });
   }, [tasks, currentDate]);
 
-  // 檢查 2026 年是否有任務（引導按鈕使用）
   const hasFutureTasks = useMemo(() => {
     const nextYear = startOfYear(setYear(new Date(), 2026));
     return tasks.some(t => {
@@ -119,7 +117,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden relative">
-      {/* 引導跳轉提示 */}
       {currentMonthTasks.length === 0 && currentYear === 2025 && hasFutureTasks && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[40] animate-bounce">
           <button 

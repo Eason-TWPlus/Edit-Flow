@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FilterState, Program, Editor, TaskStatus } from '../types';
+import { FilterState, Program, Editor, TaskStatus } from '../types.ts';
 
 interface FilterBarProps {
   filters: FilterState;

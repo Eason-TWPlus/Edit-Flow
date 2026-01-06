@@ -40,6 +40,18 @@
       background: #cbd5e1;
       border-radius: 20px;
     }
+    #error-display {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: #ef4444;
+      color: white;
+      padding: 20px;
+      z-index: 9999;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
   </style>
 <script type="importmap">
 {
@@ -56,8 +68,19 @@
   }
 }
 </script>
+<script>
+  // 捕捉載入錯誤，避免默默白屏
+  window.addEventListener('error', function(e) {
+    const display = document.getElementById('error-display');
+    if (display) {
+      display.style.display = 'block';
+      display.textContent = '系統載入失敗: ' + (e.error?.message || e.message) + '\n\n' + (e.error?.stack || '');
+    }
+  });
+</script>
 </head>
 <body>
+  <div id="error-display"></div>
   <div id="root"></div>
   <script type="module" src="./index.tsx"></script>
 </body>

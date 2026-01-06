@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, ChevronDown, Plus, Users, Cloud, X, Clock, Zap, Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
-import { Editor, Activity } from '../types';
+import { Editor, Activity } from '../types.ts';
 import { formatDistanceToNow, format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
 
