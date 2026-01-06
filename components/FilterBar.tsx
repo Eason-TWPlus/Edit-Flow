@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FilterState, Program, Editor, TaskStatus } from '../types.ts';
 
@@ -29,17 +28,23 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, programs, ed
       </div>
 
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 overflow-hidden">
-          <span className="text-[8px] font-bold text-slate-300 px-2 uppercase tracking-tighter shrink-0">人員</span>
+        <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <span className="text-[8px] font-bold text-slate-300 px-3 uppercase tracking-tighter shrink-0 border-r border-slate-100 mr-2">人員</span>
           <div className="flex space-x-1 overflow-x-auto no-scrollbar py-0.5">
             {editors.map(e => (
-              <button key={e.id} onClick={() => toggleEditor(e.name)} className={`px-3 py-1 text-[10px] font-bold rounded-lg whitespace-nowrap transition-all ${filters.editors.includes(e.name) ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>{e.name}</button>
+              <button 
+                key={e.id} 
+                onClick={() => toggleEditor(e.name)} 
+                className={`px-3 py-1 text-[10px] font-bold rounded-lg whitespace-nowrap transition-all ${filters.editors.includes(e.name) ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                {e.name}
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 overflow-hidden">
-          <span className="text-[8px] font-bold text-slate-300 px-2 uppercase tracking-tighter shrink-0">節目</span>
+        <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <span className="text-[8px] font-bold text-slate-300 px-3 uppercase tracking-tighter shrink-0 border-r border-slate-100 mr-2">節目</span>
           <div className="flex space-x-1 overflow-x-auto no-scrollbar py-0.5">
             {programs.map(p => (
               <button 
@@ -47,7 +52,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, programs, ed
                 onClick={() => toggleShow(p.name)} 
                 className={`px-3 py-1 text-[10px] font-bold rounded-lg whitespace-nowrap transition-all ${filters.shows.includes(p.name) ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                <span>{p.name}</span>
+                {p.name}
               </button>
             ))}
           </div>
