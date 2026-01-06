@@ -16,6 +16,7 @@ interface Props {
   editors: Editor[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
   lastSyncedAt?: string;
+  onRefresh?: () => void;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -28,7 +29,8 @@ const Header: React.FC<Props> = ({
   onOpenCollab, 
   editors, 
   syncStatus,
-  lastSyncedAt
+  lastSyncedAt,
+  onRefresh
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ const Header: React.FC<Props> = ({
       case 'syncing': 
         return { 
           icon: <RefreshCw size={12} className="text-amber-500 animate-spin" />, 
-          text: '正在進行衝突檢查...',
+          text: '同步中...',
           color: 'bg-amber-500'
         };
       case 'error': 
@@ -60,7 +62,7 @@ const Header: React.FC<Props> = ({
       default: 
         return { 
           icon: <Wifi size={12} className="text-emerald-500" />, 
-          text: 'Live 即時同步中',
+          text: 'Google Sheet 連動中',
           color: 'bg-emerald-500'
         };
     }
@@ -70,11 +72,6 @@ const Header: React.FC<Props> = ({
 
   return (
     <header className={`${isMobile ? 'h-14 px-4' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative`}>
-      {/* 同步進度條 (僅在同步時顯示) */}
-      {syncStatus === 'syncing' && (
-        <div className="absolute bottom-0 left-0 h-[2px] bg-indigo-500 animate-progress-fast transition-all z-50" style={{ width: '100%' }}></div>
-      )}
-
       <div className="flex-1 max-w-lg mr-4 flex items-center space-x-2">
         <div className="relative group flex-1">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-indigo-500' : 'text-slate-400'}`} size={isMobile ? 14 : 16} />
@@ -86,45 +83,26 @@ const Header: React.FC<Props> = ({
             className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-8 pr-8 focus:ring-2 ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-xs font-medium"
           />
         </div>
-        {isMobile && (
-          <button 
-            onClick={onAddTask}
-            className="w-9 h-9 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-lg active:scale-90 transition-transform"
-          >
-            <Plus size={18} />
-          </button>
-        )}
       </div>
       
-      <div className="flex items-center space-x-2 md:space-x-5">
-        {!isMobile && (
-          <div className="flex items-center space-x-6">
-            <div className="flex flex-col items-end">
-              <div className="flex items-center space-x-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100">
-                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'syncing' ? 'animate-pulse' : ''} ${syncUI.color}`}></div>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                  {syncUI.text}
-                </span>
-              </div>
-              {lastSyncedAt && (
-                <span className="text-[8px] text-slate-300 font-bold mt-1 uppercase tracking-widest">
-                  最新資料：{format(new Date(lastSyncedAt), 'HH:mm:ss')}
-                </span>
-              )}
-            </div>
-            
-            <button 
-              onClick={onOpenCollab}
-              className="flex items-center space-x-2 px-4 py-1.5 bg-slate-900 text-white rounded-full hover:bg-black transition-all shadow-lg shadow-slate-900/10"
-            >
-              <Users size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest">團隊同步代碼</span>
-            </button>
-          </div>
-        )}
+      <div className="flex items-center space-x-2 md:space-x-4">
+        <button 
+          onClick={onRefresh}
+          className={`p-2 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${syncStatus === 'syncing' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title="重新整理資料"
+        >
+          <RefreshCw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+        </button>
 
-        {isMobile && (
-           <div className={`w-2 h-2 rounded-full ${syncUI.color} ${syncStatus === 'syncing' ? 'animate-pulse' : ''}`}></div>
+        {!isMobile && (
+          <div className="flex flex-col items-end mr-2">
+            <div className="flex items-center space-x-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100">
+              <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'syncing' ? 'animate-pulse' : ''} ${syncUI.color}`}></div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                {syncUI.text}
+              </span>
+            </div>
+          </div>
         )}
 
         <div className="relative" ref={notificationRef}>
@@ -144,29 +122,23 @@ const Header: React.FC<Props> = ({
                 </span>
               </div>
               <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                {activities.map(activity => (
-                  <div key={activity.id} className="p-4 border-b border-slate-50 last:border-0">
-                    <p className="text-xs font-bold text-slate-800 leading-tight">{activity.details}</p>
-                    <span className="text-[9px] text-slate-300 uppercase font-black mt-1 block">
-                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: zhTW })}
-                    </span>
-                  </div>
-                ))}
+                {activities.length === 0 ? (
+                  <div className="p-8 text-center text-slate-300 text-[10px] font-bold uppercase tracking-widest">無最新動態</div>
+                ) : (
+                  activities.map(activity => (
+                    <div key={activity.id} className="p-4 border-b border-slate-50 last:border-0">
+                      <p className="text-xs font-bold text-slate-800 leading-tight">{activity.details}</p>
+                      <span className="text-[9px] text-slate-300 uppercase font-black mt-1 block">
+                        {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: zhTW })}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
-      <style>{`
-        @keyframes progress-fast {
-          0% { width: 0%; left: 0; }
-          50% { width: 100%; left: 0; }
-          100% { width: 0%; left: 100%; }
-        }
-        .animate-progress-fast {
-          animation: progress-fast 1s infinite linear;
-        }
-      `}</style>
     </header>
   );
 };

@@ -4,13 +4,14 @@ import { Task, Editor } from '../types';
 import { 
   format, endOfMonth, eachDayOfInterval, 
   isSameDay, addMonths, isToday, 
-  endOfWeek, isWithinInterval, differenceInDays
+  endOfWeek, isWithinInterval, differenceInDays,
+  setYear, getYear
 } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
 import subMonths from 'date-fns/subMonths';
 import parseISO from 'date-fns/parseISO';
 import startOfWeek from 'date-fns/startOfWeek';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon } from 'lucide-react';
 
 interface CalendarViewProps {
   tasks: Task[];
@@ -25,6 +26,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  
+  const jumpToYear = (year: number) => {
+    setCurrentDate(setYear(currentDate, year));
+  };
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -42,9 +47,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
   const tasksForSelectedDay = useMemo(() => {
     return tasks.filter(t => {
-      const start = parseISO(t.startDate);
-      const end = parseISO(t.endDate);
-      return isWithinInterval(selectedDay, { start, end });
+      try {
+        const start = parseISO(t.startDate);
+        const end = parseISO(t.endDate);
+        return isWithinInterval(selectedDay, { start, end });
+      } catch (e) { return false; }
     });
   }, [tasks, selectedDay]);
 
@@ -54,13 +61,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
     return tasks
       .filter(task => {
-        const start = parseISO(task.startDate);
-        const end = parseISO(task.endDate);
-        return (start <= weekEnd && end >= weekStart);
+        try {
+          const start = parseISO(task.startDate);
+          const end = parseISO(task.endDate);
+          return (start <= weekEnd && end >= weekStart);
+        } catch (e) { return false; }
       })
       .map(task => {
-        const start = parseISO(task.startDate) < weekStart ? weekStart : parseISO(task.startDate);
-        const end = parseISO(task.endDate) > weekEnd ? weekEnd : parseISO(task.endDate);
+        const tStart = parseISO(task.startDate);
+        const tEnd = parseISO(task.endDate);
+        const start = tStart < weekStart ? weekStart : tStart;
+        const end = tEnd > weekEnd ? weekEnd : tEnd;
         const startCol = differenceInDays(start, weekStart);
         const span = differenceInDays(end, start) + 1;
         
@@ -80,13 +91,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
       });
   };
 
+  const currentYear = getYear(currentDate);
+
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* 固定標題欄 */}
       <div className={`${isMobile ? 'px-4 py-3' : 'px-10 py-6'} border-b border-slate-100 flex items-center justify-between bg-white z-30 shrink-0`}>
-        <h3 className={`${isMobile ? 'text-lg' : 'text-3xl'} font-black tracking-tighter uppercase italic text-slate-900`}>
-          {format(currentDate, 'yyyy / MM')}
-        </h3>
+        <div className="flex items-center space-x-4">
+          <h3 className={`${isMobile ? 'text-lg' : 'text-3xl'} font-black tracking-tighter uppercase italic text-slate-900`}>
+            {format(currentDate, 'yyyy / MM')}
+          </h3>
+          <div className="hidden md:flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
+            {[2025, 2026].map(y => (
+              <button 
+                key={y}
+                onClick={() => jumpToYear(y)}
+                className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${currentYear === y ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
+              >
+                {y}年
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex bg-slate-100 p-0.5 rounded-xl">
           <button onClick={handlePrevMonth} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronLeft size={16} /></button>
           <button onClick={() => {setCurrentDate(new Date()); setSelectedDay(new Date());}} className="px-3 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">Today</button>
@@ -94,14 +120,26 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
         </div>
       </div>
 
-      {/* 星期表頭 */}
+      {isMobile && (
+        <div className="flex items-center justify-center space-x-4 py-2 bg-slate-50 border-b border-slate-100">
+           {[2025, 2026].map(y => (
+              <button 
+                key={y}
+                onClick={() => jumpToYear(y)}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-black transition-all ${currentYear === y ? 'bg-slate-900 text-white' : 'text-slate-400'}`}
+              >
+                {y}
+              </button>
+            ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 shrink-0">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
           <div key={i} className="py-2 text-center text-[8px] font-black text-slate-300 uppercase tracking-widest">{day}</div>
         ))}
       </div>
 
-      {/* 可捲動內容區 - 修改此處讓整體在手機上可捲動 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
         <div className="flex flex-col shrink-0 min-h-max">
           {weekRows.map((week, weekIdx) => (
@@ -130,7 +168,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
           ))}
         </div>
 
-        {/* 手機版詳情面板 - 在捲動區底部顯示，不再 mt-auto 以防止橫式時推擠內容 */}
         {isMobile && (
           <div className="border-t border-slate-100 p-6 bg-slate-50/50 min-h-[200px]">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">

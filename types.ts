@@ -18,8 +18,8 @@ export interface Task {
   endDate: string;
   notes?: string;
   lastEditedBy?: string;
-  lastEditedAt: string; // 強制要求，用於衝突比對
-  version: number;      // 用於版本控制
+  lastEditedAt: string;
+  version: number;
 }
 
 export interface Activity {
@@ -38,7 +38,6 @@ export interface Program {
   duration: string;
   priority: 'High' | 'Medium' | 'Low';
   updatedAt: string;
-  // Fix: Added missing date fields required by ProgramManager
   productionDate?: string;
   deliveryDate?: string;
   premiereDate?: string;
@@ -67,4 +66,5 @@ export interface WorkspaceSettings {
   workingDays: number[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
   lastSyncedAt?: string;
+  googleSheetId?: string; // 新增：用於串接外部資料
 }

@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Task, Program, Editor, FilterState, WorkspaceSettings, Activity } from './types';
-import { INITIAL_TASKS } from './initialData';
 import Sidebar from './components/Sidebar';
 import MobileNav from './components/MobileNav';
 import Header from './components/Header';
@@ -13,26 +12,159 @@ import ProgramManager from './components/ProgramManager';
 import SettingsView from './components/SettingsView';
 import StatsView from './components/StatsView';
 import CollaborationModal from './components/CollaborationModal';
-import { SHOWS, EDITORS, EDITOR_COLORS, EDITOR_AVATARS } from './constants';
-import { GoogleGenAI } from "@google/genai";
-import { Plus } from 'lucide-react';
+import { SHOWS, EDITORS, EDITOR_COLORS } from './constants';
 
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem('tp_workspace_id') || "TWP_DEV_01");
   
-  // --- Data States ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [editors, setEditors] = useState<Editor[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [settings, setSettings] = useState<WorkspaceSettings>({
-    id: workspaceId,
-    companyName: 'TaiwanPlus',
-    workingDays: [1,2,3,4,5],
-    syncStatus: 'syncing',
-    lastSyncedAt: new Date().toISOString()
+  const [settings, setSettings] = useState<WorkspaceSettings>(() => {
+    const saved = localStorage.getItem(`settings_${workspaceId}`);
+    return saved ? JSON.parse(saved) : {
+      id: workspaceId,
+      companyName: 'TaiwanPlus',
+      workingDays: [1,2,3,4,5],
+      syncStatus: 'synced',
+      lastSyncedAt: new Date().toISOString(),
+      googleSheetId: '1FWZXvZjghfOjT8JkW-SGZMrLCP3oyI7K3I71kEUmc1w'
+    };
   });
+
+  const isSyncing = useRef(false);
+
+  // --- 標準化日期函數：處理 2026/1/1 -> 2026-01-01 ---
+  const normalizeDate = (dateStr: string): string => {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    const parts = dateStr.split(/[\/\-]/);
+    if (parts.length === 3) {
+      let [y, m, d] = parts;
+      // 確保是 YYYY-MM-DD
+      if (y.length === 4) {
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+    }
+    return dateStr;
+  };
+
+  const parseCSV = (csv: string): any[] => {
+    const lines = csv.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    const splitLine = (text: string) => {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') inQuotes = !inQuotes;
+        else if (char === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else cur += char;
+      }
+      result.push(cur.trim());
+      return result.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
+    };
+
+    const headers = splitLine(lines[0]).map(h => h.trim().replace(/^\uFEFF/, ''));
+    return lines.slice(1).map(line => {
+      const values = splitLine(line);
+      const obj: any = {};
+      headers.forEach((header, i) => {
+        if (header) obj[header] = values[i] || '';
+      });
+      return obj;
+    });
+  };
+
+  const importFromGoogleSheets = useCallback(async (sheetId: string) => {
+    if (!sheetId || isSyncing.current) return;
+    isSyncing.current = true;
+    setSettings(prev => ({ ...prev, syncStatus: 'syncing' }));
+    
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Fetch failed");
+      
+      const csvData = await response.text();
+      const rawRows = parseCSV(csvData);
+      
+      if (rawRows.length === 0) {
+        setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
+        return false;
+      }
+
+      const mappedTasks: Task[] = rawRows.map((row, idx) => {
+        // 欄位匹配優化：支援空格處理
+        const getCol = (names: string[]) => {
+          const key = Object.keys(row).find(k => names.includes(k.trim()));
+          return key ? row[key] : null;
+        };
+
+        const id = getCol(['ID', 'id']) || `gs_${idx}_${Date.now()}`;
+        const show = getCol(['節目', 'Show']) || 'Unknown';
+        const episode = getCol(['集數', 'Episode']) || 'N/A';
+        const editor = getCol(['剪輯師', 'Editor']) || 'James';
+        const startDateRaw = getCol(['開始日', 'StartDate']) || '';
+        const endDateRaw = getCol(['交播日', 'EndDate']) || '';
+        const notes = getCol(['備註', 'Notes']) || '';
+
+        return {
+          id,
+          show,
+          episode,
+          editor,
+          startDate: normalizeDate(startDateRaw),
+          endDate: normalizeDate(endDateRaw),
+          notes,
+          lastEditedAt: new Date().toISOString(),
+          version: 1
+        };
+      });
+
+      setTasks(mappedTasks);
+      setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
+      
+      const cloudKey = `cloud_db_${workspaceId}`;
+      localStorage.setItem(cloudKey, JSON.stringify({
+        tasks: mappedTasks,
+        lastSyncedAt: new Date().toISOString()
+      }));
+
+      return true;
+    } catch (e) {
+      console.error("Sheet Sync Failed", e);
+      setSettings(prev => ({ ...prev, syncStatus: 'error' }));
+      return false;
+    } finally {
+      isSyncing.current = false;
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const cloudKey = `cloud_db_${workspaceId}`;
+    const savedData = localStorage.getItem(cloudKey);
+    setPrograms(SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })));
+    setEditors(EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })));
+
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      setTasks(parsed.tasks || []);
+    }
+
+    if (settings.googleSheetId) {
+      importFromGoogleSheets(settings.googleSheetId);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    localStorage.setItem(`settings_${workspaceId}`, JSON.stringify(settings));
+  }, [settings, workspaceId]);
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,131 +172,23 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [aiInsight, setAiInsight] = useState<string>("");
-
-  const pollTimer = useRef<number | null>(null);
-  const isSyncing = useRef(false);
-
-  // --- 資料救援：從舊版格式遷移 ---
-  const migrateLegacyData = useCallback(() => {
-    const legacyKeys = ['tasks', 'editflow_tasks', 'tp_tasks'];
-    let migratedTasks: Task[] = [];
-    
-    legacyKeys.forEach(key => {
-      const data = localStorage.getItem(key);
-      if (data) {
-        try {
-          const parsed = JSON.parse(data);
-          if (Array.isArray(parsed)) migratedTasks = [...migratedTasks, ...parsed];
-          localStorage.removeItem(key); // 遷移後移除舊 Key
-        } catch(e) {}
-      }
-    });
-
-    return migratedTasks;
-  }, []);
-
-  // --- 智慧合併邏輯 ---
-  const mergeEntities = useCallback(<T extends { id: string, updatedAt?: string, lastEditedAt?: string }>(remote: T[], local: T[]): T[] => {
-    const map = new Map<string, T>();
-    remote.forEach(t => map.set(t.id, t));
-    local.forEach(l => {
-      const r = map.get(l.id);
-      const lTime = new Date(l.updatedAt || l.lastEditedAt || 0).getTime();
-      const rTime = new Date(r?.updatedAt || r?.lastEditedAt || 0).getTime();
-      if (!r || lTime > rTime) map.set(l.id, l);
-    });
-    return Array.from(map.values());
-  }, []);
-
-  // --- 全實體雲端同步 ---
-  const fetchAndSync = useCallback(async (overrides?: { tasks?: Task[], programs?: Program[], editors?: Editor[] }) => {
-    if (isSyncing.current) return;
-    isSyncing.current = true;
-    setSettings(prev => ({ ...prev, syncStatus: 'syncing' }));
-
-    try {
-      const cloudKey = `cloud_db_${workspaceId}`;
-      const savedData = localStorage.getItem(cloudKey);
-      
-      let remoteData = savedData ? JSON.parse(savedData) : null;
-      
-      if (!remoteData) {
-        const legacyTasks = migrateLegacyData();
-        remoteData = { 
-          tasks: legacyTasks.length > 0 ? legacyTasks : INITIAL_TASKS, 
-          programs: SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })), 
-          editors: EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })) 
-        };
-      }
-
-      const mergedTasks = mergeEntities(remoteData.tasks || [], overrides?.tasks || tasks);
-      const mergedPrograms = mergeEntities(remoteData.programs || [], overrides?.programs || programs);
-      const mergedEditors = mergeEntities(remoteData.editors || [], overrides?.editors || editors);
-      
-      setTasks(mergedTasks);
-      setPrograms(mergedPrograms);
-      setEditors(mergedEditors);
-      
-      localStorage.setItem(cloudKey, JSON.stringify({
-        tasks: mergedTasks,
-        programs: mergedPrograms,
-        editors: mergedEditors,
-        lastSyncedAt: new Date().toISOString()
-      }));
-
-      setSettings(prev => ({ 
-        ...prev, 
-        syncStatus: 'synced', 
-        lastSyncedAt: new Date().toISOString() 
-      }));
-    } catch (e) {
-      console.error("Sync Failed:", e);
-      setSettings(prev => ({ ...prev, syncStatus: 'error' }));
-    } finally {
-      isSyncing.current = false;
-    }
-  }, [workspaceId, tasks, programs, editors, mergeEntities, migrateLegacyData]);
-
-  useEffect(() => {
-    fetchAndSync();
-    pollTimer.current = window.setInterval(() => fetchAndSync(), 10000);
-    return () => { if (pollTimer.current) clearInterval(pollTimer.current); };
-  }, [fetchAndSync]);
-
-  const handleSaveTask = async (updatedTask: Task) => {
-    const timestamp = new Date().toISOString();
-    const taskWithMeta = { 
-      ...updatedTask, 
-      lastEditedAt: timestamp,
-      version: (updatedTask.version || 0) + 1 
-    };
-
-    const newTasks = taskWithMeta.id 
-      ? tasks.map(t => t.id === taskWithMeta.id ? taskWithMeta : t)
-      : [...tasks, { ...taskWithMeta, id: Math.random().toString(36).substr(2, 9) }];
-    
-    setTasks(newTasks);
-    setIsModalOpen(false);
-    await fetchAndSync({ tasks: newTasks });
-  };
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       const showMatch = filters.shows.length === 0 || filters.shows.includes(task.show);
       const editorMatch = filters.editors.length === 0 || filters.editors.includes(task.editor);
-      const searchStr = `${task.show} ${task.episode} ${task.editor} ${task.notes || ''}`.toLowerCase();
+      const searchStr = `${task.show} ${task.episode} ${task.editor}`.toLowerCase();
       const searchMatch = !searchTerm || searchStr.includes(searchTerm.toLowerCase());
       return showMatch && editorMatch && searchMatch;
     });
   }, [tasks, filters, searchTerm]);
 
   return (
-    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-full bg-slate-50 text-slate-800 overflow-hidden font-sans`}>
+    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-full bg-slate-50 text-slate-800 overflow-hidden`}>
       {!isMobile && (
         <Sidebar 
           onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} 
-          insights={aiInsight}
+          insights=""
           currentView={currentView}
           setCurrentView={setCurrentView}
         />
@@ -182,6 +206,7 @@ const App: React.FC = () => {
           editors={editors}
           syncStatus={settings.syncStatus}
           lastSyncedAt={settings.lastSyncedAt}
+          onRefresh={() => importFromGoogleSheets(settings.googleSheetId || '')}
         />
         
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
@@ -193,9 +218,22 @@ const App: React.FC = () => {
               switch(currentView) {
                 case 'calendar': return <CalendarView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} isMobile={isMobile} />;
                 case 'stats': return <StatsView tasks={tasks} editors={editors} programs={programs} />;
-                case 'team': return <MemberManager editors={editors} setEditors={(e) => { const next = typeof e === 'function' ? e(editors) : e; setEditors(next); fetchAndSync({ editors: next }); }} tasks={tasks} setTasks={setTasks} />;
-                case 'programs': return <ProgramManager programs={programs} setPrograms={(p) => { const next = typeof p === 'function' ? p(programs) : p; setPrograms(next); fetchAndSync({ programs: next }); }} tasks={tasks} setTasks={setTasks} />;
-                case 'settings': return <SettingsView settings={settings} setSettings={setSettings} tasks={tasks} setTasks={setTasks} programs={programs} setPrograms={setPrograms} editors={editors} setEditors={setEditors} onReset={() => { localStorage.clear(); window.location.reload(); }} />;
+                case 'team': return <MemberManager editors={editors} setEditors={setEditors} tasks={tasks} setTasks={setTasks} />;
+                case 'programs': return <ProgramManager programs={programs} setPrograms={setPrograms} tasks={tasks} setTasks={setTasks} />;
+                case 'settings': return (
+                  <SettingsView 
+                    settings={settings} 
+                    setSettings={setSettings} 
+                    tasks={tasks} 
+                    setTasks={setTasks} 
+                    programs={programs} 
+                    setPrograms={setPrograms} 
+                    editors={editors} 
+                    setEditors={setEditors} 
+                    onReset={() => { localStorage.clear(); window.location.reload(); }}
+                    onSyncGoogleSheets={importFromGoogleSheets}
+                  />
+                );
                 default: return null;
               }
             })()}
@@ -212,11 +250,18 @@ const App: React.FC = () => {
           editors={editors}
           isMobile={isMobile}
           onClose={() => { setEditingTask(null); setIsModalOpen(false); }}
-          onSave={handleSaveTask}
+          onSave={(t) => {
+            const next = t.id && !t.id.startsWith('gs_') ? tasks.map(x => x.id === t.id ? t : x) : [...tasks, { ...t, id: Date.now().toString() }];
+            setTasks(next);
+            const cloudKey = `cloud_db_${workspaceId}`;
+            localStorage.setItem(cloudKey, JSON.stringify({ tasks: next }));
+            setIsModalOpen(false);
+          }}
           onDelete={(id) => {
-            const newTasks = tasks.filter(t => t.id !== id);
-            setTasks(newTasks);
-            fetchAndSync({ tasks: newTasks });
+            const next = tasks.filter(t => t.id !== id);
+            setTasks(next);
+            const cloudKey = `cloud_db_${workspaceId}`;
+            localStorage.setItem(cloudKey, JSON.stringify({ tasks: next }));
             setIsModalOpen(false);
           }}
         />
