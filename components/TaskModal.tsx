@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Task, Program, Editor } from '../types';
-import { X, Trash2, Calendar, Layout, User, ChevronLeft, Clock, ShieldCheck } from 'lucide-react';
+import { Task, Program, Editor, TaskStatus, TaskPhase } from '../types';
+import { X, Trash2, Calendar, Layout, User, ChevronLeft, Clock, ShieldCheck, Activity, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
 
@@ -16,12 +16,14 @@ interface TaskModalProps {
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose, onSave, onDelete, isMobile }) => {
-  const [formData, setFormData] = useState<Omit<Task, 'id'>>({
+  const [formData, setFormData] = useState<Omit<Task, 'id' | 'lastEditedAt' | 'version'>>({
     show: programs[0]?.name || '',
     episode: '',
     editor: editors[0]?.name || '',
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
+    status: 'Todo',
+    phase: 'RoughCut',
     notes: ''
   });
 
@@ -33,6 +35,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
         editor: task.editor,
         startDate: task.startDate,
         endDate: task.endDate,
+        status: task.status || 'Todo',
+        phase: task.phase || 'RoughCut',
         notes: task.notes || ''
       });
     }
@@ -77,7 +81,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
           </div>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: task?.id || '', ...formData }); }} className={`${isMobile ? 'p-6 pb-24' : 'p-10'} space-y-8`}>
+        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: task?.id || '', ...formData, lastEditedAt: new Date().toISOString(), version: (task?.version || 0) + 1 }); }} className={`${isMobile ? 'p-6 pb-24' : 'p-10'} space-y-8`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -112,6 +116,40 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
               >
                 {editors.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+              </select>
+            </div>
+
+            {/* 新增：狀態選擇 */}
+            <div>
+              <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                <Activity size={12} /> <span>當前狀態</span>
+              </label>
+              <select 
+                value={formData.status}
+                onChange={e => setFormData({ ...formData, status: e.target.value as TaskStatus })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
+              >
+                <option value="Todo">待處理 (Todo)</option>
+                <option value="InProgress">剪輯中 (In Progress)</option>
+                <option value="Review">審核中 (Review)</option>
+                <option value="Completed">已完成 (Completed)</option>
+              </select>
+            </div>
+
+            {/* 新增：階段選擇 */}
+            <div>
+              <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                <Layers size={12} /> <span>製作階段</span>
+              </label>
+              <select 
+                value={formData.phase}
+                onChange={e => setFormData({ ...formData, phase: e.target.value as TaskPhase })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
+              >
+                <option value="RoughCut">粗剪階段</option>
+                <option value="FineCut">精剪/調色</option>
+                <option value="Subtitles">字幕製作</option>
+                <option value="Delivery">準備交播</option>
               </select>
             </div>
 
@@ -163,16 +201,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
             )}
           </div>
         </form>
-        
-        {!isMobile && (
-          <div className="px-10 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-slate-400">
-               <ShieldCheck size={14} />
-               <span className="text-[10px] font-bold uppercase tracking-widest">Enterprise Security Active</span>
-            </div>
-            <p className="text-[10px] font-bold text-slate-300 uppercase">TaiwanPlus Edit Hub</p>
-          </div>
-        )}
       </div>
     </div>
   );

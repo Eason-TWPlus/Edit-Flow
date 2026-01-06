@@ -9,6 +9,9 @@ export type ShowName =
 
 export type EditorName = 'Dolphine' | 'Eason' | 'James';
 
+export type TaskStatus = 'Todo' | 'InProgress' | 'Review' | 'Completed';
+export type TaskPhase = 'RoughCut' | 'FineCut' | 'Subtitles' | 'Delivery';
+
 export interface Task {
   id: string;
   show: string;
@@ -16,6 +19,8 @@ export interface Task {
   editor: string;
   startDate: string;
   endDate: string;
+  status: TaskStatus;
+  phase: TaskPhase;
   notes?: string;
   lastEditedBy?: string;
   lastEditedAt: string;
@@ -57,6 +62,7 @@ export interface Editor {
 export interface FilterState {
   shows: string[];
   editors: string[];
+  statuses: TaskStatus[];
 }
 
 export interface WorkspaceSettings {
@@ -66,5 +72,5 @@ export interface WorkspaceSettings {
   workingDays: number[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
   lastSyncedAt?: string;
-  googleSheetId?: string; // 新增：用於串接外部資料
+  googleSheetId?: string;
 }

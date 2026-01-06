@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import MobileNav from './components/MobileNav';
 import Header from './components/Header';
 import CalendarView from './components/CalendarView';
+import TimelineView from './components/TimelineView';
 import TaskModal from './components/TaskModal';
 import FilterBar from './components/FilterBar';
 import MemberManager from './components/MemberManager';
@@ -39,7 +40,6 @@ const App: React.FC = () => {
 
   const isSyncing = useRef(false);
 
-  // --- 超強日期正規化：支援 2026/1/1, 26/1/1, 2026.01.01 等 ---
   const normalizeDate = (dateStr: string): string => {
     if (!dateStr) return '';
     const pureDate = dateStr.trim().split(/\s+/)[0];
@@ -49,18 +49,9 @@ const App: React.FC = () => {
       let y = parts[0];
       let m = parts[1];
       let d = parts[2];
-      
-      // 處理年份只有兩位數的情況 (例如 26/1/1 -> 2026/1/1)
       if (y.length === 2) y = "20" + y;
-      
-      // 處理 DD/MM/YYYY 的情況
-      if (y.length !== 4 && d.length === 4) {
-        [y, d] = [d, y];
-      }
-      
-      if (y.length === 4) {
-        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      }
+      if (y.length !== 4 && d.length === 4) [y, d] = [d, y];
+      if (y.length === 4) return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
     return dateStr;
   };
@@ -68,7 +59,6 @@ const App: React.FC = () => {
   const parseCSV = (csv: string): any[] => {
     const lines = csv.split(/\r?\n/).filter(line => line.trim());
     if (lines.length < 2) return [];
-
     const splitLine = (text: string) => {
       const result = [];
       let cur = '';
@@ -84,14 +74,11 @@ const App: React.FC = () => {
       result.push(cur.trim());
       return result.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
     };
-
     const headers = splitLine(lines[0]).map(h => h.trim().replace(/^\uFEFF/, ''));
     return lines.slice(1).map(line => {
       const values = splitLine(line);
       const obj: any = {};
-      headers.forEach((header, i) => {
-        if (header) obj[header] = values[i] || '';
-      });
+      headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
       return obj;
     });
   };
@@ -105,43 +92,27 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      
-      if (response.status === 404) {
-        throw new Error("找不到試算表。請確認 ID 是否正確，且該表單已執行「發佈到網路」。");
-      }
-      if (!response.ok) throw new Error("同步失敗，請檢查網路連線。");
+      if (response.status === 404) throw new Error("找不到試算表，請確認 ID 與「發佈到網路」設定。");
+      if (!response.ok) throw new Error("同步失敗，請檢查網路。");
       
       const csvData = await response.text();
       const rawRows = parseCSV(csvData);
       
-      if (rawRows.length === 0) {
-        setImportCount(0);
-        setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
-        return false;
-      }
-
       const mappedTasks: Task[] = rawRows.map((row, idx) => {
         const getCol = (names: string[]) => {
           const key = Object.keys(row).find(k => names.some(n => k.trim().toLowerCase() === n.toLowerCase()));
           return key ? row[key] : null;
         };
-
-        const id = getCol(['ID', 'id']) || `gs_${idx}_${Date.now()}`;
-        const show = getCol(['節目', 'Show', '節目名稱']) || 'Unknown';
-        const episode = getCol(['集數', 'Episode', '集數識別']) || 'N/A';
-        const editor = getCol(['剪輯師', 'Editor', '負責人']) || 'James';
-        const startDateRaw = getCol(['開始日', 'StartDate', '開始日期', '日期']) || '';
-        const endDateRaw = getCol(['交播日', 'EndDate', '交播日期', '完成日期']) || '';
-        const notes = getCol(['備註', 'Notes', '說明']) || '';
-
         return {
-          id,
-          show,
-          episode,
-          editor,
-          startDate: normalizeDate(startDateRaw),
-          endDate: normalizeDate(endDateRaw),
-          notes,
+          id: getCol(['ID', 'id']) || `gs_${idx}_${Date.now()}`,
+          show: getCol(['節目', 'Show', '節目名稱']) || 'Unknown',
+          episode: getCol(['集數', 'Episode', '集數識別']) || 'N/A',
+          editor: getCol(['剪輯師', 'Editor', '負責人']) || 'James',
+          startDate: normalizeDate(getCol(['開始日', 'StartDate', '開始日期', '日期']) || ''),
+          endDate: normalizeDate(getCol(['交播日', 'EndDate', '交播日期', '完成日期']) || ''),
+          status: (getCol(['狀態', 'Status']) || 'Todo') as any,
+          phase: (getCol(['階段', 'Phase']) || 'RoughCut') as any,
+          notes: getCol(['備註', 'Notes', '說明']) || '',
           lastEditedAt: new Date().toISOString(),
           version: 1
         };
@@ -150,16 +121,9 @@ const App: React.FC = () => {
       setTasks(mappedTasks);
       setImportCount(mappedTasks.length);
       setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
-      
-      const cloudKey = `cloud_db_${workspaceId}`;
-      localStorage.setItem(cloudKey, JSON.stringify({
-        tasks: mappedTasks,
-        lastSyncedAt: new Date().toISOString()
-      }));
-
+      localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: mappedTasks, lastSyncedAt: new Date().toISOString() }));
       return true;
     } catch (e: any) {
-      console.error("Sheet Sync Failed", e);
       setSyncError(e.message);
       setSettings(prev => ({ ...prev, syncStatus: 'error' }));
       return false;
@@ -173,16 +137,12 @@ const App: React.FC = () => {
     const savedData = localStorage.getItem(cloudKey);
     setPrograms(SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })));
     setEditors(EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })));
-
     if (savedData) {
       const parsed = JSON.parse(savedData);
       setTasks(parsed.tasks || []);
       if (parsed.tasks) setImportCount(parsed.tasks.length);
     }
-
-    if (settings.googleSheetId) {
-      importFromGoogleSheets(settings.googleSheetId);
-    }
+    if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
   }, [workspaceId]);
 
   useEffect(() => {
@@ -191,7 +151,7 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<FilterState>({ shows: [], editors: [] });
+  const [filters, setFilters] = useState<FilterState>({ shows: [], editors: [], statuses: [] });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -200,9 +160,10 @@ const App: React.FC = () => {
     return tasks.filter(task => {
       const showMatch = filters.shows.length === 0 || filters.shows.includes(task.show);
       const editorMatch = filters.editors.length === 0 || filters.editors.includes(task.editor);
+      const statusMatch = filters.statuses.length === 0 || filters.statuses.includes(task.status);
       const searchStr = `${task.show} ${task.episode} ${task.editor}`.toLowerCase();
       const searchMatch = !searchTerm || searchStr.includes(searchTerm.toLowerCase());
-      return showMatch && editorMatch && searchMatch;
+      return showMatch && editorMatch && statusMatch && searchMatch;
     });
   }, [tasks, filters, searchTerm]);
 
@@ -242,6 +203,7 @@ const App: React.FC = () => {
             {(() => {
               switch(currentView) {
                 case 'calendar': return <CalendarView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} isMobile={isMobile} />;
+                case 'timeline': return <TimelineView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} />;
                 case 'stats': return <StatsView tasks={tasks} editors={editors} programs={programs} />;
                 case 'team': return <MemberManager editors={editors} setEditors={setEditors} tasks={tasks} setTasks={setTasks} />;
                 case 'programs': return <ProgramManager programs={programs} setPrograms={setPrograms} tasks={tasks} setTasks={setTasks} />;
@@ -278,15 +240,13 @@ const App: React.FC = () => {
           onSave={(t) => {
             const next = t.id && !t.id.startsWith('gs_') ? tasks.map(x => x.id === t.id ? t : x) : [...tasks, { ...t, id: Date.now().toString() }];
             setTasks(next);
-            const cloudKey = `cloud_db_${workspaceId}`;
-            localStorage.setItem(cloudKey, JSON.stringify({ tasks: next }));
+            localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: next }));
             setIsModalOpen(false);
           }}
           onDelete={(id) => {
             const next = tasks.filter(t => t.id !== id);
             setTasks(next);
-            const cloudKey = `cloud_db_${workspaceId}`;
-            localStorage.setItem(cloudKey, JSON.stringify({ tasks: next }));
+            localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: next }));
             setIsModalOpen(false);
           }}
         />
