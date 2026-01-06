@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Task, Editor } from '../types';
+import { Task, Editor } from '../types.ts';
 import { format, endOfMonth, eachDayOfInterval, isSameDay, addMonths, isToday } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
 import subMonths from 'date-fns/subMonths';

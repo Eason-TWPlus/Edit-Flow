@@ -1,5 +1,5 @@
 
-import { ShowName, EditorName } from './types';
+import { ShowName, EditorName } from './types.ts';
 
 export const SHOWS: ShowName[] = [
   'Correspondents',

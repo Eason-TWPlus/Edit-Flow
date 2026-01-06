@@ -1,18 +1,18 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Task, Program, Editor, FilterState, WorkspaceSettings, Activity } from './types';
-import Sidebar from './components/Sidebar';
-import MobileNav from './components/MobileNav';
-import Header from './components/Header';
-import CalendarView from './components/CalendarView';
-import TimelineView from './components/TimelineView';
-import TaskModal from './components/TaskModal';
-import FilterBar from './components/FilterBar';
-import MemberManager from './components/MemberManager';
-import ProgramManager from './components/ProgramManager';
-import SettingsView from './components/SettingsView';
-import StatsView from './components/StatsView';
-import { SHOWS, EDITORS, EDITOR_COLORS } from './constants';
+import { Task, Program, Editor, FilterState, WorkspaceSettings, Activity } from './types.ts';
+import Sidebar from './components/Sidebar.tsx';
+import MobileNav from './components/MobileNav.tsx';
+import Header from './components/Header.tsx';
+import CalendarView from './components/CalendarView.tsx';
+import TimelineView from './components/TimelineView.tsx';
+import TaskModal from './components/TaskModal.tsx';
+import FilterBar from './components/FilterBar.tsx';
+import MemberManager from './components/MemberManager.tsx';
+import ProgramManager from './components/ProgramManager.tsx';
+import SettingsView from './components/SettingsView.tsx';
+import StatsView from './components/StatsView.tsx';
+import { SHOWS, EDITORS, EDITOR_COLORS } from './constants.tsx';
 
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -132,8 +132,10 @@ const App: React.FC = () => {
     setEditors(EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })));
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      setTasks(parsed.tasks || []);
-      if (parsed.tasks) setImportCount(parsed.tasks.length);
+      if (parsed.tasks) {
+        setTasks(parsed.tasks);
+        setImportCount(parsed.tasks.length);
+      }
     }
     if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
     
