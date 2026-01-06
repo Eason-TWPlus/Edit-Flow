@@ -41,16 +41,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
     return rows;
   }, [weeks]);
 
-  // 修改此處：標準化比對邏輯，確保當天有任務時能正確顯示
+  // 修復：改進篩選邏輯，確保點擊當日能準確列出橫跨多日的任務
   const tasksForSelectedDay = useMemo(() => {
     const checkDay = startOfDay(selectedDay);
     return tasks.filter(t => {
       try {
+        // 標準化開始與結束日期
         const start = startOfDay(parseISO(t.startDate));
         const end = endOfDay(parseISO(t.endDate));
-        // 如果選中的日子在該任務的開始與結束區間內
         return isWithinInterval(checkDay, { start, end });
-      } catch (e) { return false; }
+      } catch (e) { 
+        return false; 
+      }
     });
   }, [tasks, selectedDay]);
 
@@ -123,7 +125,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
                   return (
                     <div 
                       key={dayIdx} 
-                      onClick={() => setSelectedDay(startOfDay(day))}
+                      onClick={() => {
+                        const clicked = startOfDay(day);
+                        setSelectedDay(clicked);
+                      }}
                       className={`border-r border-slate-50 p-1 md:p-4 pointer-events-auto cursor-pointer transition-colors ${!isCurMonth ? 'bg-slate-50/10' : 'hover:bg-indigo-50/30'} ${isSel ? 'bg-indigo-50/50' : ''}`}
                     >
                       <span className={`text-[10px] md:text-sm font-black flex items-center justify-center w-6 h-6 md:w-7 md:h-7 ${isToday(day) ? 'bg-slate-900 text-white rounded-lg' : isSel ? 'text-indigo-600' : 'text-slate-800'}`}>

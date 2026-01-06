@@ -46,10 +46,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
     ? "flex-1 overflow-y-auto" 
     : "bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200";
 
+  // 手機版頂部增加安全邊距
+  const headerStyle = isMobile ? {
+    paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
+    paddingBottom: '16px'
+  } : {};
+
   return (
     <div className={containerClasses}>
       <div className={contentClasses}>
-        <div className={`${isMobile ? 'px-6 py-4' : 'p-8'} border-b border-slate-100 bg-white sticky top-0 z-10`}>
+        <div 
+          style={headerStyle}
+          className={`${isMobile ? 'px-6' : 'p-8'} border-b border-slate-100 bg-white sticky top-0 z-10`}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3">
               {isMobile && <button onClick={onClose} className="p-1"><ChevronLeft size={24} /></button>}
@@ -77,7 +86,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
           </div>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: task?.id || '', ...formData, lastEditedAt: new Date().toISOString(), version: (task?.version || 0) + 1 }); }} className={`${isMobile ? 'p-6 pb-24' : 'p-10'} space-y-8`}>
+        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: task?.id || '', ...formData, lastEditedAt: new Date().toISOString(), version: (task?.version || 0) + 1 }); }} className={`${isMobile ? 'p-6 pb-32' : 'p-10'} space-y-8`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -148,7 +157,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
             </div>
           </div>
 
-          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom' : ''}`}>
+          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom pb-8' : ''}`}>
             <button type="submit" className="flex-1 py-5 bg-slate-900 text-white rounded-2xl font-black shadow-2xl hover:bg-black transition-all uppercase tracking-[0.2em] text-sm active:scale-95">
               {task ? '儲存異動並同步' : '發佈製作任務'}
             </button>
