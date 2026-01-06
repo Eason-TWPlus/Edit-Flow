@@ -86,7 +86,7 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
               </label>
               <input 
                 placeholder="例如: 1FWZXvZjghfOjT8JkW..."
-                className="w-full bg-white border border-emerald-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                className="w-full bg-white border border-emerald-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 ring-emerald-500/10 focus:border-indigo-500 transition-all"
                 value={settings.googleSheetId || ''}
                 onChange={e => setSettings({...settings, googleSheetId: e.target.value})}
               />
@@ -151,7 +151,7 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
       </div>
 
       <div className="mt-auto flex items-center justify-between opacity-30 py-8 border-t border-slate-100">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Build v2.6.0 - Syntax Fixed</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Build v2.6.2 - Build Fixed</span>
         <button onClick={onReset} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">重置所有資料</button>
       </div>
     </div>
