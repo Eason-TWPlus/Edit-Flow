@@ -99,8 +99,6 @@ const App: React.FC = () => {
           editor: getCol(['剪輯師', 'Editor', '負責人']) || 'James',
           startDate: normalizeDate(getCol(['開始日', 'StartDate', '開始日期', '日期']) || ''),
           endDate: normalizeDate(getCol(['交播日', 'EndDate', '交播日期', '完成日期']) || ''),
-          status: (getCol(['狀態', 'Status']) || 'Todo') as any,
-          phase: (getCol(['階段', 'Phase']) || 'RoughCut') as any,
           notes: getCol(['備註', 'Notes', '說明']) || '',
           lastEditedAt: new Date().toISOString(),
           version: 1
@@ -176,7 +174,7 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<FilterState>({ shows: [], editors: [], statuses: [] });
+  const [filters, setFilters] = useState<FilterState>({ shows: [], editors: [] });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -184,9 +182,8 @@ const App: React.FC = () => {
     return tasks.filter(task => {
       const showMatch = filters.shows.length === 0 || filters.shows.includes(task.show);
       const editorMatch = filters.editors.length === 0 || filters.editors.includes(task.editor);
-      const statusMatch = filters.statuses.length === 0 || filters.statuses.includes(task.status);
       const searchStr = `${task.show} ${task.episode} ${task.editor}`.toLowerCase();
-      return showMatch && editorMatch && statusMatch && (!searchTerm || searchStr.includes(searchTerm.toLowerCase()));
+      return showMatch && editorMatch && (!searchTerm || searchStr.includes(searchTerm.toLowerCase()));
     });
   }, [tasks, filters, searchTerm]);
 

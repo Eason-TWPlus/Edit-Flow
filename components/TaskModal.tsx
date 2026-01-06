@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Task, Program, Editor, TaskStatus, TaskPhase } from '../types.ts';
-import { X, Trash2, Calendar, Layout, User, ChevronLeft, Clock, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { Task, Program, Editor } from '../types.ts';
+import { X, Trash2, Calendar, Layout, User, ChevronLeft, Clock, Activity, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
 
@@ -22,8 +22,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
     editor: editors[0]?.name || '',
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-    status: 'Todo',
-    phase: 'RoughCut',
     notes: ''
   });
 
@@ -35,8 +33,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
         editor: task.editor,
         startDate: task.startDate,
         endDate: task.endDate,
-        status: task.status || 'Todo',
-        phase: task.phase || 'RoughCut',
         notes: task.notes || ''
       });
     }
@@ -96,7 +92,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               </select>
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">集數識別 (Episode)</label>
               <input 
                 type="text" required value={formData.episode}
@@ -106,7 +102,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               />
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
                 <User size={12} /> <span>指派剪輯師</span>
               </label>
@@ -116,38 +112,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
               >
                 {editors.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                <Activity size={12} /> <span>當前狀態</span>
-              </label>
-              <select 
-                value={formData.status}
-                onChange={e => setFormData({ ...formData, status: e.target.value as TaskStatus })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
-              >
-                <option value="Todo">待處理 (Todo)</option>
-                <option value="InProgress">剪輯中 (In Progress)</option>
-                <option value="Review">審核中 (Review)</option>
-                <option value="Completed">已完成 (Completed)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                <Layers size={12} /> <span>製作階段</span>
-              </label>
-              <select 
-                value={formData.phase}
-                onChange={e => setFormData({ ...formData, phase: e.target.value as TaskPhase })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 outline-none font-bold transition-all appearance-none"
-              >
-                <option value="RoughCut">粗剪階段</option>
-                <option value="FineCut">精剪/調色</option>
-                <option value="Subtitles">字幕製作</option>
-                <option value="Delivery">準備交播</option>
               </select>
             </div>
 
@@ -174,7 +138,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">製作備註 (Collaborative Notes)</label>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">製作備註 (Notes)</label>
               <textarea 
                 value={formData.notes}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}

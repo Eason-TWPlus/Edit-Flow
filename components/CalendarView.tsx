@@ -117,34 +117,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden relative">
-      {currentMonthTasks.length === 0 && currentYear === 2025 && hasFutureTasks && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[40] animate-bounce">
-          <button 
-            onClick={() => jumpToYear(2026)}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl flex items-center space-x-2 border-2 border-white"
-          >
-            <span>跳轉至 2026 年排程</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      )}
-
       <div className={`${isMobile ? 'px-4 py-3' : 'px-10 py-6'} border-b border-slate-100 flex items-center justify-between bg-white z-30 shrink-0`}>
         <div className="flex items-center space-x-4">
           <h3 className={`${isMobile ? 'text-lg' : 'text-3xl'} font-black tracking-tighter uppercase italic text-slate-900`}>
             {format(currentDate, 'yyyy / MM')}
           </h3>
-          <div className="hidden md:flex items-center space-x-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
-            {[2025, 2026].map(y => (
-              <button 
-                key={y}
-                onClick={() => jumpToYear(y)}
-                className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${currentYear === y ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
-              >
-                {y}年
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="flex bg-slate-100 p-0.5 rounded-xl">
@@ -153,20 +130,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
           <button onClick={handleNextMonth} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronRight size={16} /></button>
         </div>
       </div>
-
-      {isMobile && (
-        <div className="flex items-center justify-center space-x-4 py-2 bg-slate-50 border-b border-slate-100">
-           {[2025, 2026].map(y => (
-              <button 
-                key={y}
-                onClick={() => jumpToYear(y)}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-black transition-all ${currentYear === y ? 'bg-slate-900 text-white' : 'text-slate-400'}`}
-              >
-                {y}
-              </button>
-            ))}
-        </div>
-      )}
 
       <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 shrink-0">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (

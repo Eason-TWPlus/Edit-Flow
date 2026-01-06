@@ -2,9 +2,6 @@
 export type ShowName = 'Correspondents' | 'DC Insiders' | 'Finding Formosa' | 'In Case You Missed It' | 'Zoom In, Zoom Out' | 'Special Program';
 export type EditorName = 'Dolphine' | 'Eason' | 'James';
 
-export type TaskStatus = 'Todo' | 'InProgress' | 'Review' | 'Completed';
-export type TaskPhase = 'RoughCut' | 'FineCut' | 'Subtitles' | 'Delivery';
-
 export interface Task {
   id: string;
   show: string;
@@ -12,8 +9,6 @@ export interface Task {
   editor: string;
   startDate: string;
   endDate: string;
-  status: TaskStatus;
-  phase: TaskPhase;
   notes?: string;
   lastEditedAt: string;
   version: number;
@@ -51,7 +46,6 @@ export interface Editor {
 export interface FilterState {
   shows: string[];
   editors: string[];
-  statuses: TaskStatus[];
 }
 
 export interface WorkspaceSettings {

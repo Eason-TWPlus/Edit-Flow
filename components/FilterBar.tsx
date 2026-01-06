@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FilterState, Program, Editor, TaskStatus } from '../types.ts';
+import { FilterState, Program, Editor } from '../types.ts';
 
 interface FilterBarProps {
   filters: FilterState;
@@ -22,8 +23,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, programs, ed
     <div className={`${isMobile ? 'py-3' : 'py-4'} space-y-3 shrink-0`}>
       <div className="flex items-center justify-between">
         <h2 className={`${isMobile ? 'text-xl' : 'text-3xl'} font-black tracking-tighter uppercase italic`}>製作排程總覽</h2>
-        {(filters.shows.length > 0 || filters.editors.length > 0 || filters.statuses.length > 0) && (
-          <button onClick={() => setFilters({ shows: [], editors: [], statuses: [] })} className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">清除篩選</button>
+        {(filters.shows.length > 0 || filters.editors.length > 0) && (
+          <button onClick={() => setFilters({ shows: [], editors: [] })} className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">清除篩選</button>
         )}
       </div>
 
