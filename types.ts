@@ -1,12 +1,5 @@
 
-export type ShowName = 
-  | 'Correspondents'
-  | 'DC Insiders'
-  | 'Finding Formosa'
-  | 'In Case You Missed It'
-  | 'Zoom In, Zoom Out'
-  | 'Special Program';
-
+export type ShowName = 'Correspondents' | 'DC Insiders' | 'Finding Formosa' | 'In Case You Missed It' | 'Zoom In, Zoom Out' | 'Special Program';
 export type EditorName = 'Dolphine' | 'Eason' | 'James';
 
 export type TaskStatus = 'Todo' | 'InProgress' | 'Review' | 'Completed';
@@ -22,7 +15,6 @@ export interface Task {
   status: TaskStatus;
   phase: TaskPhase;
   notes?: string;
-  lastEditedBy?: string;
   lastEditedAt: string;
   version: number;
 }
@@ -31,7 +23,6 @@ export interface Activity {
   id: string;
   type: 'create' | 'update' | 'delete' | 'join' | 'sync';
   userName: string;
-  targetTask?: string;
   timestamp: string;
   details: string;
 }
@@ -54,8 +45,6 @@ export interface Editor {
   role: string;
   color: string;
   notes: string;
-  avatar?: string;
-  isOnline?: boolean;
   updatedAt: string;
 }
 
@@ -68,7 +57,6 @@ export interface FilterState {
 export interface WorkspaceSettings {
   id: string;
   companyName: string;
-  logoUrl?: string;
   workingDays: number[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
   lastSyncedAt?: string;

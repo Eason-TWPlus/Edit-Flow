@@ -17,7 +17,7 @@ import { SHOWS, EDITORS, EDITOR_COLORS } from './constants';
 
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem('tp_workspace_id') || "TWP_DEV_01");
+  const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem('tp_workspace_id') || "TWP_PRO_01");
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -44,43 +44,13 @@ const App: React.FC = () => {
     if (!dateStr) return '';
     const pureDate = dateStr.trim().split(/\s+/)[0];
     const parts = pureDate.split(/[\/\-.]/);
-    
     if (parts.length === 3) {
-      let y = parts[0];
-      let m = parts[1];
-      let d = parts[2];
+      let y = parts[0], m = parts[1], d = parts[2];
       if (y.length === 2) y = "20" + y;
       if (y.length !== 4 && d.length === 4) [y, d] = [d, y];
       if (y.length === 4) return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
     return dateStr;
-  };
-
-  const parseCSV = (csv: string): any[] => {
-    const lines = csv.split(/\r?\n/).filter(line => line.trim());
-    if (lines.length < 2) return [];
-    const splitLine = (text: string) => {
-      const result = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        if (char === '"') inQuotes = !inQuotes;
-        else if (char === ',' && !inQuotes) {
-          result.push(cur.trim());
-          cur = '';
-        } else cur += char;
-      }
-      result.push(cur.trim());
-      return result.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
-    };
-    const headers = splitLine(lines[0]).map(h => h.trim().replace(/^\uFEFF/, ''));
-    return lines.slice(1).map(line => {
-      const values = splitLine(line);
-      const obj: any = {};
-      headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
-      return obj;
-    });
   };
 
   const importFromGoogleSheets = useCallback(async (sheetId: string) => {
@@ -92,11 +62,32 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (response.status === 404) throw new Error("找不到試算表，請確認 ID 與「發佈到網路」設定。");
-      if (!response.ok) throw new Error("同步失敗，請檢查網路。");
+      if (!response.ok) throw new Error("同步失敗，請確認 ID 是否正確且已「發佈到網路」。");
       
       const csvData = await response.text();
-      const rawRows = parseCSV(csvData);
+      const lines = csvData.split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 2) throw new Error("試算表內無有效資料。");
+
+      const splitLine = (text: string) => {
+        const result = [];
+        let cur = '', inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          if (char === '"') inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) { result.push(cur.trim()); cur = ''; }
+          else cur += char;
+        }
+        result.push(cur.trim());
+        return result.map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
+      };
+
+      const headers = splitLine(lines[0]).map(h => h.trim().replace(/^\uFEFF/, ''));
+      const rawRows = lines.slice(1).map(line => {
+        const values = splitLine(line);
+        const obj: any = {};
+        headers.forEach((header, i) => { if (header) obj[header] = values[i] || ''; });
+        return obj;
+      });
       
       const mappedTasks: Task[] = rawRows.map((row, idx) => {
         const getCol = (names: string[]) => {
@@ -145,15 +136,10 @@ const App: React.FC = () => {
     if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
   }, [workspaceId]);
 
-  useEffect(() => {
-    localStorage.setItem(`settings_${workspaceId}`, JSON.stringify(settings));
-  }, [settings, workspaceId]);
-
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<FilterState>({ shows: [], editors: [], statuses: [] });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const filteredTasks = useMemo(() => {
@@ -162,80 +148,42 @@ const App: React.FC = () => {
       const editorMatch = filters.editors.length === 0 || filters.editors.includes(task.editor);
       const statusMatch = filters.statuses.length === 0 || filters.statuses.includes(task.status);
       const searchStr = `${task.show} ${task.episode} ${task.editor}`.toLowerCase();
-      const searchMatch = !searchTerm || searchStr.includes(searchTerm.toLowerCase());
-      return showMatch && editorMatch && statusMatch && searchMatch;
+      return showMatch && editorMatch && statusMatch && (!searchTerm || searchStr.includes(searchTerm.toLowerCase()));
     });
   }, [tasks, filters, searchTerm]);
 
   return (
     <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-full bg-slate-50 text-slate-800 overflow-hidden`}>
-      {!isMobile && (
-        <Sidebar 
-          onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} 
-          insights=""
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-        />
-      )}
-      
+      {!isMobile && <Sidebar onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} insights="" currentView={currentView} setCurrentView={setCurrentView} />}
       <main className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
         <Header 
-          companyName={settings.companyName} 
-          isMobile={isMobile} 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          activities={activities}
-          onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }}
-          onOpenCollab={() => setIsCollabOpen(true)}
-          editors={editors}
-          syncStatus={settings.syncStatus}
-          lastSyncedAt={settings.lastSyncedAt}
+          companyName={settings.companyName} isMobile={isMobile} searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+          activities={activities} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }}
+          editors={editors} syncStatus={settings.syncStatus} lastSyncedAt={settings.lastSyncedAt}
           onRefresh={() => importFromGoogleSheets(settings.googleSheetId || '')}
-          importCount={importCount}
-          syncError={syncError}
+          importCount={importCount} syncError={syncError}
         />
-        
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
-          {currentView === 'calendar' && (
-            <FilterBar filters={filters} setFilters={setFilters} programs={programs} editors={editors} isMobile={isMobile} />
-          )}
-          <div className={`flex-1 bg-white ${isMobile ? 'rounded-xl' : 'rounded-[32px]'} border border-slate-200 overflow-hidden flex flex-col shadow-sm relative`}>
+          {currentView === 'calendar' && <FilterBar filters={filters} setFilters={setFilters} programs={programs} editors={editors} isMobile={isMobile} />}
+          <div className={`flex-1 bg-white ${isMobile ? 'rounded-xl' : 'rounded-[32px]'} border border-slate-200 overflow-hidden shadow-sm relative`}>
             {(() => {
               switch(currentView) {
                 case 'calendar': return <CalendarView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} isMobile={isMobile} />;
-                case 'timeline': return <TimelineView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} />;
+                case 'timeline': return <TimelineView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} />;
                 case 'stats': return <StatsView tasks={tasks} editors={editors} programs={programs} />;
                 case 'team': return <MemberManager editors={editors} setEditors={setEditors} tasks={tasks} setTasks={setTasks} />;
                 case 'programs': return <ProgramManager programs={programs} setPrograms={setPrograms} tasks={tasks} setTasks={setTasks} />;
-                case 'settings': return (
-                  <SettingsView 
-                    settings={settings} 
-                    setSettings={setSettings} 
-                    tasks={tasks} 
-                    setTasks={setTasks} 
-                    programs={programs} 
-                    setPrograms={setPrograms} 
-                    editors={editors} 
-                    setEditors={setEditors} 
-                    onReset={() => { localStorage.clear(); window.location.reload(); }}
-                    onSyncGoogleSheets={importFromGoogleSheets}
-                  />
-                );
+                case 'settings': return <SettingsView settings={settings} setSettings={setSettings} tasks={tasks} setTasks={setTasks} programs={programs} setPrograms={setPrograms} editors={editors} setEditors={setEditors} onReset={() => {localStorage.clear(); window.location.reload();}} onSyncGoogleSheets={importFromGoogleSheets} />;
                 default: return null;
               }
             })()}
           </div>
         </div>
-        
         {isMobile && <MobileNav currentView={currentView} setCurrentView={setCurrentView} />}
       </main>
-
       {isModalOpen && (
         <TaskModal
-          task={editingTask}
-          programs={programs}
-          editors={editors}
-          isMobile={isMobile}
+          task={editingTask} programs={programs} editors={editors} isMobile={isMobile}
           onClose={() => { setEditingTask(null); setIsModalOpen(false); }}
           onSave={(t) => {
             const next = t.id && !t.id.startsWith('gs_') ? tasks.map(x => x.id === t.id ? t : x) : [...tasks, { ...t, id: Date.now().toString() }];
@@ -248,18 +196,6 @@ const App: React.FC = () => {
             setTasks(next);
             localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: next }));
             setIsModalOpen(false);
-          }}
-        />
-      )}
-
-      {isCollabOpen && (
-        <CollaborationModal 
-          workspaceId={workspaceId} 
-          onClose={() => setIsCollabOpen(false)} 
-          onJoinWorkspace={(id) => { 
-            setWorkspaceId(id); 
-            localStorage.setItem('tp_workspace_id', id);
-            window.location.reload(); 
           }}
         />
       )}

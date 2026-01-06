@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Task } from '../types';
+import { Task, Editor } from '../types';
 import { format, endOfMonth, eachDayOfInterval, isSameDay, addMonths, isToday } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
 import subMonths from 'date-fns/subMonths';
@@ -11,9 +11,10 @@ import { ChevronLeft, ChevronRight, User, CheckCircle2, Clock, Play } from 'luci
 interface TimelineViewProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
+  editors: Editor[];
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask, editors }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const days = useMemo(() => {
@@ -35,7 +36,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
         const te = parseISO(t.endDate);
         return (ts <= end && te >= start);
       } catch (e) { return false; }
-    });
+    }).sort((a, b) => a.editor.localeCompare(b.editor));
   }, [tasks, currentDate]);
 
   const getTaskStyle = (task: Task, daysInView: Date[]) => {
@@ -60,20 +61,20 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
     } catch (e) { return null; }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusInfo = (status: string) => {
     switch(status) {
-      case 'Completed': return 'bg-emerald-500';
-      case 'Review': return 'bg-amber-500';
-      case 'InProgress': return 'bg-indigo-500';
-      default: return 'bg-slate-400';
+      case 'Completed': return { color: 'bg-emerald-500', label: '已完成' };
+      case 'Review': return { color: 'bg-amber-500', label: '審核中' };
+      case 'InProgress': return { color: 'bg-indigo-500', label: '剪輯中' };
+      default: return { color: 'bg-slate-400', label: '待處理' };
     }
   };
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
-      <div className="p-6 md:p-8 border-b border-zinc-100 flex items-center justify-between">
+      <div className="p-6 md:p-8 border-b border-zinc-100 flex items-center justify-between shrink-0">
         <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight italic">
-          {format(currentDate, 'yyyy / MM', { locale: zhTW })}
+          甘特圖軸 {format(currentDate, 'yyyy / MM', { locale: zhTW })}
         </h3>
         <div className="flex items-center bg-zinc-100 p-1 rounded-xl">
           <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-lg transition-all"><ChevronLeft size={16} /></button>
@@ -85,10 +86,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
       <div className="flex-1 overflow-auto custom-scrollbar">
         <div 
           className="min-w-max grid"
-          style={{ gridTemplateColumns: `240px repeat(${days.length}, 48px)` }}
+          style={{ gridTemplateColumns: `260px repeat(${days.length}, 48px)` }}
         >
+          {/* Header Row */}
           <div className="sticky top-0 z-30 bg-white border-b border-r border-zinc-100 h-14 flex items-center px-6 shadow-sm">
-            <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">節目與集數項目</span>
+            <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">節目製作項目 / 剪輯師</span>
           </div>
           {days.map(day => (
             <div 
@@ -100,21 +102,25 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
             </div>
           ))}
 
+          {/* Task Rows */}
           {monthTasks.length === 0 ? (
             <div className="col-span-full h-64 flex flex-col items-center justify-center border-b border-zinc-50 opacity-20">
-               <p className="text-sm font-black uppercase tracking-[0.3em]">本月無製作任務</p>
+               <p className="text-sm font-black uppercase tracking-[0.3em]">本月無製作排程</p>
             </div>
           ) : (
             monthTasks.map((task, idx) => {
               const style = getTaskStyle(task, days);
+              const editorData = editors.find(e => e.name === task.editor);
+              const statusInfo = getStatusInfo(task.status);
+              
               return (
                 <React.Fragment key={task.id}>
                   <div className="h-16 border-r border-b border-zinc-50 flex items-center px-6 group cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => onEditTask(task)}>
                     <div className="min-w-0">
                       <p className="text-[11px] font-black truncate uppercase tracking-tighter text-slate-800">{task.show}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusColor(task.status)}`}></span>
-                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">{task.episode} • {task.editor}</p>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.color}`}></span>
+                        <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider truncate">{task.episode} • {task.editor}</p>
                       </div>
                     </div>
                   </div>
@@ -133,9 +139,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, onEditTask }) => {
                     >
                       <div 
                         onClick={(e) => { e.stopPropagation(); onEditTask(task); }}
-                        className={`absolute inset-x-1 top-3 bottom-3 rounded-lg flex items-center px-3 cursor-pointer shadow-sm hover:scale-[1.01] transition-all overflow-hidden border border-black/5 pointer-events-auto ${getStatusColor(task.status)}`}
+                        style={{ backgroundColor: editorData?.color || '#cbd5e1' }}
+                        className="absolute inset-x-1 top-3 bottom-3 rounded-lg flex items-center px-3 cursor-pointer shadow-sm hover:scale-[1.01] transition-all overflow-hidden border border-black/5 pointer-events-auto"
                       >
-                        <span className="text-[9px] font-black text-white truncate uppercase tracking-widest">{task.episode}</span>
+                        <div className={`w-1.5 h-1.5 rounded-full mr-2 ${statusInfo.color} shadow-sm border border-white/20`}></div>
+                        <span className="text-[10px] font-black text-black/70 truncate uppercase tracking-widest">{task.episode}</span>
                       </div>
                     </div>
                   )}
