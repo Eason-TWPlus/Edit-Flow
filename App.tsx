@@ -12,7 +12,6 @@ import MemberManager from './components/MemberManager';
 import ProgramManager from './components/ProgramManager';
 import SettingsView from './components/SettingsView';
 import StatsView from './components/StatsView';
-import CollaborationModal from './components/CollaborationModal';
 import { SHOWS, EDITORS, EDITOR_COLORS } from './constants';
 
 const App: React.FC = () => {
@@ -124,6 +123,9 @@ const App: React.FC = () => {
   }, [workspaceId]);
 
   useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    
     const cloudKey = `cloud_db_${workspaceId}`;
     const savedData = localStorage.getItem(cloudKey);
     setPrograms(SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })));
@@ -134,7 +136,9 @@ const App: React.FC = () => {
       if (parsed.tasks) setImportCount(parsed.tasks.length);
     }
     if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
-  }, [workspaceId]);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [workspaceId, importFromGoogleSheets, settings.googleSheetId]);
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');

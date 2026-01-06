@@ -1,9 +1,7 @@
 
 import React, { useState } from 'react';
 import { Program, Task } from '../types';
-// Add missing MonitorPlay import from lucide-react
 import { Plus, Trash2, LayoutList, Clock, Info, Check, X, BarChart3, Edit3, Type, Truck, PlayCircle, MonitorPlay } from 'lucide-react';
-// Fix: split date-fns imports to use direct paths for members reported as missing from the main index
 import { endOfMonth, isWithinInterval } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
 import parseISO from 'date-fns/parseISO';
@@ -36,11 +34,12 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     if (editingId) {
       const oldProg = programs.find(p => p.id === editingId);
       if (oldProg && oldProg.name !== formState.name) {
+        // 同步更新所有已存在任務的節目名稱
         setTasks(prev => prev.map(t => t.show === oldProg.name ? { ...t, show: formState.name } : t));
       }
-      setPrograms(prev => prev.map(p => p.id === editingId ? { ...p, ...formState } : p));
+      setPrograms(prev => prev.map(p => p.id === editingId ? { ...p, ...formState, updatedAt: new Date().toISOString() } : p));
     } else {
-      setPrograms(prev => [...prev, { id: 'p' + Date.now(), ...formState }]);
+      setPrograms(prev => [...prev, { id: 'p' + Date.now(), ...formState, updatedAt: new Date().toISOString() }]);
     }
 
     resetForm();

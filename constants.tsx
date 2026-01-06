@@ -12,7 +12,6 @@ export const SHOWS: ShowName[] = [
 
 export const EDITORS: EditorName[] = ['Dolphine', 'Eason', 'James'];
 
-// 依照使用者要求更新剪輯師顏色
 export const EDITOR_COLORS: Record<string, string> = {
   'Dolphine': '#F7C3D6',
   'Eason': '#edd97e',
@@ -20,7 +19,6 @@ export const EDITOR_COLORS: Record<string, string> = {
   'Unknown': '#DBD7D7'
 };
 
-// 為了相容性保留，但月曆將改用 EDITOR_COLORS
 export const SHOW_COLORS: Record<ShowName, string> = {
   'Correspondents': 'bg-slate-900',
   'DC Insiders': 'bg-zinc-800',
