@@ -41,17 +41,26 @@
       background: #0f172a;
       color: white;
     }
-    #error-display {
+    #error-console {
       display: none;
       position: fixed;
-      top: 0; left: 0; right: 0;
-      background: #ef4444;
-      color: white;
-      padding: 20px;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1e1b4b;
+      color: #fb7185;
+      padding: 30px;
       z-index: 9999;
-      font-family: monospace;
-      font-size: 12px;
-      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow: auto;
+      line-height: 1.6;
+    }
+    .error-title {
+      color: white;
+      font-weight: 900;
+      font-size: 20px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #fb7185;
+      padding-bottom: 10px;
     }
   </style>
 <script type="importmap">
@@ -70,21 +79,35 @@
 }
 </script>
 <script>
-  window.addEventListener('error', function(e) {
-    const display = document.getElementById('error-display');
-    if (display) {
-      display.style.display = 'block';
-      display.textContent = '系統初始化失敗: ' + (e.error?.message || e.message);
+  // 強化錯誤捕獲
+  function showError(msg, stack) {
+    const console = document.getElementById('error-console');
+    if (console) {
+      console.style.display = 'block';
+      console.innerHTML = `
+        <div class="error-title">系統執行異常 (Runtime Error)</div>
+        <div style="font-weight: bold; margin-bottom: 10px;">Message: ${msg}</div>
+        <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px;">${stack || 'No stack trace available'}</pre>
+        <button onclick="location.reload()" style="margin-top: 20px; background: white; color: #1e1b4b; padding: 10px 20px; border-radius: 8px; font-weight: 900; border: none; cursor: pointer;">重新整理頁面</button>
+      `;
     }
+  }
+
+  window.addEventListener('error', function(e) {
+    showError(e.message, e.error?.stack);
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    showError('非同步錯誤: ' + (e.reason?.message || e.reason), e.reason?.stack);
   });
 </script>
 </head>
 <body>
-  <div id="error-display"></div>
+  <div id="error-console"></div>
   <div id="root">
     <div class="loading-screen">
       <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-      <p class="text-sm font-black uppercase tracking-[0.3em]">EditFlow 初始化中...</p>
+      <p class="text-sm font-black uppercase tracking-[0.3em]">EditFlow 模組載入中...</p>
     </div>
   </div>
   <script type="module" src="./index.tsx"></script>
