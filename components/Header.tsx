@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, Plus, Users, Cloud, X, Clock, Zap, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Search, Bell, ChevronDown, Plus, Users, Cloud, X, Clock, Zap, Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { Editor, Activity } from '../types';
 import { formatDistanceToNow, format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
@@ -18,6 +18,7 @@ interface Props {
   lastSyncedAt?: string;
   onRefresh?: () => void;
   importCount?: number | null;
+  syncError?: string | null;
 }
 
 const Header: React.FC<Props> = ({ 
@@ -32,7 +33,8 @@ const Header: React.FC<Props> = ({
   syncStatus,
   lastSyncedAt,
   onRefresh,
-  importCount
+  importCount,
+  syncError
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -52,19 +54,19 @@ const Header: React.FC<Props> = ({
       case 'syncing': 
         return { 
           icon: <RefreshCw size={12} className="text-amber-500 animate-spin" />, 
-          text: '同步中...',
+          text: '正在從試算表拉取...',
           color: 'bg-amber-500'
         };
       case 'error': 
         return { 
-          icon: <WifiOff size={12} className="text-red-500" />, 
-          text: '連線異常',
+          icon: <AlertCircle size={12} className="text-red-500" />, 
+          text: syncError || '同步失敗',
           color: 'bg-red-500'
         };
       default: 
         return { 
           icon: <Wifi size={12} className="text-emerald-500" />, 
-          text: importCount !== null ? `已同步 ${importCount} 筆` : 'Google Sheet 已連線',
+          text: importCount !== null ? `成功帶入 ${importCount} 筆` : 'Google Sheet 已連線',
           color: 'bg-emerald-500'
         };
     }
@@ -91,16 +93,16 @@ const Header: React.FC<Props> = ({
         <button 
           onClick={onRefresh}
           className={`p-2 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${syncStatus === 'syncing' ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title="重新整理資料"
+          title="重新整理試算表"
         >
           <RefreshCw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
         </button>
 
         {!isMobile && (
           <div className="flex flex-col items-end mr-2">
-            <div className="flex items-center space-x-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100">
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${syncStatus === 'error' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
               <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'syncing' ? 'animate-pulse' : ''} ${syncUI.color}`}></div>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+              <span className={`text-[10px] font-black uppercase tracking-tighter ${syncStatus === 'error' ? 'text-red-600' : 'text-slate-500'}`}>
                 {syncUI.text}
               </span>
             </div>

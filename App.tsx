@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [editors, setEditors] = useState<Editor[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [importCount, setImportCount] = useState<number | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<WorkspaceSettings>(() => {
     const saved = localStorage.getItem(`settings_${workspaceId}`);
@@ -38,10 +39,9 @@ const App: React.FC = () => {
 
   const isSyncing = useRef(false);
 
-  // --- 超級日期正規化：處理 2026/1/1 -> 2026-01-01 ---
+  // --- 超強日期正規化：支援 2026/1/1, 26/1/1, 2026.01.01 等 ---
   const normalizeDate = (dateStr: string): string => {
     if (!dateStr) return '';
-    // 移除可能的時間部分 (例如 2026/1/1 00:00:00 -> 2026/1/1)
     const pureDate = dateStr.trim().split(/\s+/)[0];
     const parts = pureDate.split(/[\/\-.]/);
     
@@ -50,7 +50,10 @@ const App: React.FC = () => {
       let m = parts[1];
       let d = parts[2];
       
-      // 處理 DD/MM/YYYY 的情況（如果年份在最後面）
+      // 處理年份只有兩位數的情況 (例如 26/1/1 -> 2026/1/1)
+      if (y.length === 2) y = "20" + y;
+      
+      // 處理 DD/MM/YYYY 的情況
       if (y.length !== 4 && d.length === 4) {
         [y, d] = [d, y];
       }
@@ -96,12 +99,17 @@ const App: React.FC = () => {
   const importFromGoogleSheets = useCallback(async (sheetId: string) => {
     if (!sheetId || isSyncing.current) return;
     isSyncing.current = true;
+    setSyncError(null);
     setSettings(prev => ({ ...prev, syncStatus: 'syncing' }));
     
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Fetch failed");
+      
+      if (response.status === 404) {
+        throw new Error("找不到試算表。請確認 ID 是否正確，且該表單已執行「發佈到網路」。");
+      }
+      if (!response.ok) throw new Error("同步失敗，請檢查網路連線。");
       
       const csvData = await response.text();
       const rawRows = parseCSV(csvData);
@@ -114,17 +122,17 @@ const App: React.FC = () => {
 
       const mappedTasks: Task[] = rawRows.map((row, idx) => {
         const getCol = (names: string[]) => {
-          const key = Object.keys(row).find(k => names.includes(k.trim()));
+          const key = Object.keys(row).find(k => names.some(n => k.trim().toLowerCase() === n.toLowerCase()));
           return key ? row[key] : null;
         };
 
         const id = getCol(['ID', 'id']) || `gs_${idx}_${Date.now()}`;
-        const show = getCol(['節目', 'Show']) || 'Unknown';
-        const episode = getCol(['集數', 'Episode']) || 'N/A';
-        const editor = getCol(['剪輯師', 'Editor']) || 'James';
-        const startDateRaw = getCol(['開始日', 'StartDate', '開始日期']) || '';
-        const endDateRaw = getCol(['交播日', 'EndDate', '交播日期']) || '';
-        const notes = getCol(['備註', 'Notes']) || '';
+        const show = getCol(['節目', 'Show', '節目名稱']) || 'Unknown';
+        const episode = getCol(['集數', 'Episode', '集數識別']) || 'N/A';
+        const editor = getCol(['剪輯師', 'Editor', '負責人']) || 'James';
+        const startDateRaw = getCol(['開始日', 'StartDate', '開始日期', '日期']) || '';
+        const endDateRaw = getCol(['交播日', 'EndDate', '交播日期', '完成日期']) || '';
+        const notes = getCol(['備註', 'Notes', '說明']) || '';
 
         return {
           id,
@@ -150,8 +158,9 @@ const App: React.FC = () => {
       }));
 
       return true;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Sheet Sync Failed", e);
+      setSyncError(e.message);
       setSettings(prev => ({ ...prev, syncStatus: 'error' }));
       return false;
     } finally {
@@ -222,6 +231,7 @@ const App: React.FC = () => {
           lastSyncedAt={settings.lastSyncedAt}
           onRefresh={() => importFromGoogleSheets(settings.googleSheetId || '')}
           importCount={importCount}
+          syncError={syncError}
         />
         
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
