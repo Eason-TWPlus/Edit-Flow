@@ -74,11 +74,11 @@ const Header: React.FC<Props> = ({
 
   const syncUI = getSyncUI();
 
-  // 手機版加入 safe-area-inset-top
+  // 手機版增加頂部安全距離，防止被 iOS 狀態列擋住
   const headerStyle = isMobile ? {
-    paddingTop: 'calc(env(safe-area-inset-top) + 8px)',
+    paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
     height: 'auto',
-    paddingBottom: '8px'
+    paddingBottom: '12px'
   } : {};
 
   return (
