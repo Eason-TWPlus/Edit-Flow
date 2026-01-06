@@ -61,7 +61,7 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("同步失敗，請確認試算表 ID 是否正確且已「發佈到網路」。");
+      if (!response.ok) throw new Error("同步失敗，請確認試算表 ID 並設為「發佈到網路」。");
       
       const csvData = await response.text();
       const lines = csvData.split(/\r?\n/).filter(line => line.trim());
@@ -111,7 +111,7 @@ const App: React.FC = () => {
       setTasks(mappedTasks);
       setImportCount(mappedTasks.length);
       setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
-      localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: mappedTasks, lastSyncedAt: new Date().toISOString() }));
+      localStorage.setItem(`cloud_db_${workspaceId}`, JSON.stringify({ tasks: mappedTasks }));
       return true;
     } catch (e: any) {
       setSyncError(e.message);
@@ -127,27 +127,53 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     
     // 初始化資源資料
-    setPrograms(SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })));
-    setEditors(EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })));
+    const savedPrograms = localStorage.getItem(`programs_${workspaceId}`);
+    if (savedPrograms) {
+      setPrograms(JSON.parse(savedPrograms));
+    } else {
+      setPrograms(SHOWS.map(s => ({ 
+        id: s.toLowerCase().replace(/\s+/g, '-'), 
+        name: s, 
+        updatedAt: new Date().toISOString(), 
+        priority: 'Medium', 
+        duration: '24:00', 
+        description: '' 
+      })));
+    }
+
+    const savedEditors = localStorage.getItem(`editors_${workspaceId}`);
+    if (savedEditors) {
+      setEditors(JSON.parse(savedEditors));
+    } else {
+      setEditors(EDITORS.map(e => ({ 
+        id: e.toLowerCase(), 
+        name: e, 
+        color: EDITOR_COLORS[e] || '#cbd5e1', 
+        updatedAt: new Date().toISOString(), 
+        role: 'Editor', 
+        notes: '' 
+      })));
+    }
     
-    // 優先從本地存儲讀取
     const savedData = localStorage.getItem(`cloud_db_${workspaceId}`);
     if (savedData) {
       const parsed = JSON.parse(savedData);
       if (parsed.tasks && parsed.tasks.length > 0) {
         setTasks(parsed.tasks);
         setImportCount(parsed.tasks.length);
-      } else {
-        // 如果本地資料為空，自動觸發同步
-        if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
       }
     } else if (settings.googleSheetId) {
-      // 首次部署，自動從 Google Sheets 拉取
       importFromGoogleSheets(settings.googleSheetId);
     }
     
     return () => window.removeEventListener('resize', handleResize);
   }, [workspaceId, importFromGoogleSheets, settings.googleSheetId]);
+
+  // 當 programs 或 editors 改變時儲存
+  useEffect(() => {
+    if (programs.length > 0) localStorage.setItem(`programs_${workspaceId}`, JSON.stringify(programs));
+    if (editors.length > 0) localStorage.setItem(`editors_${workspaceId}`, JSON.stringify(editors));
+  }, [programs, editors, workspaceId]);
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');

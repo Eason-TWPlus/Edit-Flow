@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Program, Task } from '../types';
+import { Program, Task } from '../types.ts';
 import { Plus, Trash2, LayoutList, Clock, Info, Check, X, BarChart3, Edit3, Type, Truck, PlayCircle, MonitorPlay } from 'lucide-react';
 import { endOfMonth, isWithinInterval } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
@@ -25,8 +25,6 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     deliveryDate: '',
     premiereDate: ''
   });
-
-  const currentMonth = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
 
   const handleSave = () => {
     if (!formState.name) return;
@@ -77,87 +75,88 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     <div className="p-8 h-full overflow-y-auto custom-scrollbar bg-slate-50/50">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">節目資產管理</h2>
-          <p className="text-slate-500 text-sm mt-1">管理節目基本資訊、產出規範與關鍵節點</p>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">節目與製作資產管理</h2>
+          <p className="text-slate-500 text-sm mt-1 uppercase tracking-widest font-medium opacity-70">Program Production Specs</p>
         </div>
-        <button 
-          onClick={() => { resetForm(); setShowAdd(true); }}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold flex items-center space-x-2 transition-all shadow-md shadow-indigo-600/10"
-        >
-          <Plus size={18} />
-          <span>建立新節目</span>
-        </button>
+        {!showAdd && (
+          <button 
+            onClick={() => { resetForm(); setShowAdd(true); }}
+            className="bg-slate-900 hover:bg-black text-white px-6 py-2.5 rounded-xl font-bold flex items-center space-x-2 transition-all shadow-lg"
+          >
+            <Plus size={18} />
+            <span>建立新節目</span>
+          </button>
+        )}
       </div>
 
       {showAdd && (
-        <div className="mb-8 p-8 bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="mb-8 p-8 bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/20 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
-              <Edit3 size={18} className="text-indigo-500" />
-              <span>{editingId ? '編輯節目資訊' : '初始化新節目'}</span>
+            <h3 className="text-lg font-black uppercase tracking-widest text-slate-800">
+              {editingId ? '編輯節目規範' : '初始化新節目資產'}
             </h3>
-            <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20}/></button>
+            <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">節目全名</label>
+              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">節目正式名稱</label>
               <input 
-                placeholder="例如: TaiwanPlus News Tonight" 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="例如: TaiwanPlus News" 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold"
                 value={formState.name}
                 onChange={e => setFormState({...formState, name: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">預計時長</label>
+              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">單集長度</label>
               <input 
                 placeholder="24'00\" 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold"
                 value={formState.duration}
                 onChange={e => setFormState({...formState, duration: e.target.value})}
               />
             </div>
             
             <div className="space-y-1.5">
-              <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">
-                <Type size={14} className="text-slate-400"/> <span>製作日 (文字填寫)</span>
+              <label className="flex items-center space-x-1.5 text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">
+                <Type size={12}/> <span>製作週期</span>
               </label>
               <input 
-                placeholder="例如: 每週一二 或 10/12"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="例如: 每週一二"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                 value={formState.productionDate}
                 onChange={e => setFormState({...formState, productionDate: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">
-                <Truck size={14} className="text-slate-400"/> <span>交播日 (文字填寫)</span>
+              <label className="flex items-center space-x-1.5 text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">
+                <Truck size={12}/> <span>交播規範</span>
               </label>
               <input 
-                placeholder="例如: 隔週三 或 10/15"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="例如: 隔週三 12:00"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                 value={formState.deliveryDate}
                 onChange={e => setFormState({...formState, deliveryDate: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">
-                <PlayCircle size={14} className="text-slate-400"/> <span>首播日 (文字填寫)</span>
+              <label className="flex items-center space-x-1.5 text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">
+                <PlayCircle size={12}/> <span>首播時間</span>
               </label>
               <input 
-                placeholder="例如: 每週五晚間"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="例如: 每週五 20:00"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                 value={formState.premiereDate}
                 onChange={e => setFormState({...formState, premiereDate: e.target.value})}
               />
             </div>
 
             <div className="md:col-span-3 space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500 ml-1 uppercase tracking-wider">節目描述與製作規範</label>
+              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">製作描述與剪輯規範</label>
               <textarea 
-                placeholder="輸入該節目的視覺風格、剪輯要求或特殊備註..." 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium h-24 resize-none"
+                placeholder="輸入關於視覺包裝、轉檔格式、素材位置等重要資訊..." 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium h-32 resize-none"
                 value={formState.description}
                 onChange={e => setFormState({...formState, description: e.target.value})}
               />
@@ -165,9 +164,9 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
           </div>
           
           <div className="mt-8 flex justify-end space-x-3">
-             <button onClick={resetForm} className="px-6 py-2.5 rounded-xl font-semibold text-slate-500 hover:bg-slate-100 transition-all">取消</button>
-             <button onClick={handleSave} className="bg-slate-900 text-white px-8 py-2.5 rounded-xl font-semibold hover:bg-black transition-all shadow-lg">
-                儲存節目
+             <button onClick={resetForm} className="px-6 py-2.5 rounded-xl font-bold text-slate-400 hover:text-slate-600 transition-all">取消</button>
+             <button onClick={handleSave} className="bg-indigo-600 text-white px-10 py-2.5 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20">
+                {editingId ? '儲存變更' : '初始化節目'}
              </button>
           </div>
         </div>
@@ -175,69 +174,78 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {programs.map(prog => {
-          const monthTasks = tasks.filter(t => t.show === prog.name && isWithinInterval(parseISO(t.startDate), currentMonth));
+          const totalEps = tasks.filter(t => t.show === prog.name).length;
           return (
             <div 
               key={prog.id} 
-              className="group bg-white border border-slate-200 rounded-2xl p-6 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all flex flex-col relative"
+              className="group bg-white border border-slate-200 rounded-[32px] p-8 hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all flex flex-col relative overflow-hidden"
             >
-              <div className="flex items-start justify-between mb-6">
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:scale-110 transition-transform">
+                <LayoutList size={120} className="text-slate-900" />
+              </div>
+
+              <div className="flex items-start justify-between mb-8 relative z-10">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
-                    <LayoutList size={24} />
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                    <MonitorPlay size={32} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">{prog.name}</h3>
-                    <div className="flex items-center space-x-3 mt-1">
-                       <span className="flex items-center space-x-1 text-[11px] text-slate-400 font-medium">
-                          <Clock size={12} /> <span>{prog.duration || '無時長資訊'}</span>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">{prog.name}</h3>
+                    <div className="flex items-center space-x-3 mt-1.5">
+                       <span className="flex items-center space-x-1 text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                          <Clock size={12} /> <span>{prog.duration}</span>
                        </span>
                        <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
-                       <span className="text-[11px] text-indigo-500 font-semibold uppercase tracking-wider">
-                          累計產出 {tasks.filter(t => t.show === prog.name).length} 集
+                       <span className="text-[10px] text-indigo-500 font-black uppercase tracking-widest">
+                          累計產出 {totalEps} 集
                        </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="flex items-center space-x-1">
                   <button 
                     onClick={() => startEdit(prog)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                    title="編輯"
+                    className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                   >
                     <Edit3 size={18} />
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除節目？')) setPrograms(prev => prev.filter(x => x.id !== prog.id)); }}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    title="刪除"
+                    onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除此節目資產？這不會刪除排程，但會失去規格紀錄。')) setPrograms(prev => prev.filter(x => x.id !== prog.id)); }}
+                    className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
                     <Trash2 size={18} />
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <DateTag icon={<Type size={12}/>} label="製作日" value={prog.productionDate} />
+              <div className="grid grid-cols-3 gap-3 mb-8 relative z-10">
+                <DateTag icon={<Type size={12}/>} label="製作週期" value={prog.productionDate} />
                 <DateTag icon={<Truck size={12}/>} label="交播日" value={prog.deliveryDate} />
-                <DateTag icon={<PlayCircle size={12}/>} label="首播日" value={prog.premiereDate} />
+                <DateTag icon={<PlayCircle size={12}/>} label="首播時段" value={prog.premiereDate} />
               </div>
 
-              <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                   <span className="text-xs font-medium text-slate-500">本月進度: {monthTasks.length} 集</span>
+              {prog.description && (
+                <div className="mb-8 p-5 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed font-medium line-clamp-3 group-hover:line-clamp-none transition-all">
+                   {prog.description}
                 </div>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">ID: {prog.id.slice(-4)}</span>
+              )}
+
+              <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-between relative z-10">
+                <div className="flex items-center space-x-2">
+                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">系統連動中</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-200 uppercase tracking-[0.3em] font-mono">{prog.id.slice(-8)}</span>
               </div>
             </div>
           );
         })}
 
         {programs.length === 0 && !showAdd && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-2xl border border-dashed border-slate-300 text-slate-400">
-            <MonitorPlay size={48} className="mb-4 opacity-20" />
-            <p className="font-medium">尚未建立任何節目，點擊上方按鈕開始</p>
+          <div className="col-span-full py-24 flex flex-col items-center justify-center bg-white rounded-[40px] border-2 border-dashed border-slate-100 text-slate-400">
+            <MonitorPlay size={64} className="mb-6 opacity-10" />
+            <p className="font-black uppercase tracking-[0.3em] text-sm italic">尚未建立節目製作資產</p>
+            <button onClick={() => setShowAdd(true)} className="mt-6 text-indigo-500 font-black uppercase tracking-widest text-[10px] hover:underline">點擊此處開始初始化</button>
           </div>
         )}
       </div>
@@ -246,12 +254,12 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
 };
 
 const DateTag: React.FC<{ icon: React.ReactNode, label: string, value?: string }> = ({ icon, label, value }) => (
-  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col space-y-1">
-    <div className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col space-y-1 hover:bg-white hover:shadow-sm transition-all">
+    <div className="flex items-center space-x-1.5 text-[9px] font-black text-slate-300 uppercase tracking-widest">
       {icon} <span>{label}</span>
     </div>
-    <div className="text-xs font-bold text-slate-700 truncate">
-      {value || <span className="text-slate-300 font-normal">未設定</span>}
+    <div className="text-[11px] font-black text-slate-700 truncate">
+      {value || <span className="text-slate-200 font-normal">--</span>}
     </div>
   </div>
 );
