@@ -16,7 +16,7 @@ import { SHOWS, EDITORS, EDITOR_COLORS } from './constants.tsx';
 
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [workspaceId, setWorkspaceId] = useState(() => localStorage.getItem('tp_workspace_id') || "TWP_PRO_01");
+  const workspaceId = "TWP_PRO_01";
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -61,7 +61,7 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("同步失敗，請確認 ID 是否正確且已「發佈到網路」。");
+      if (!response.ok) throw new Error("同步失敗，請確認試算表 ID 是否正確且已「發佈到網路」。");
       
       const csvData = await response.text();
       const lines = csvData.split(/\r?\n/).filter(line => line.trim());
@@ -126,18 +126,25 @@ const App: React.FC = () => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     
-    const cloudKey = `cloud_db_${workspaceId}`;
-    const savedData = localStorage.getItem(cloudKey);
+    // 初始化資源資料
     setPrograms(SHOWS.map(s => ({ id: s, name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' })));
     setEditors(EDITORS.map(e => ({ id: e, name: e, color: EDITOR_COLORS[e], updatedAt: new Date().toISOString(), role: 'Editor', notes: '' })));
+    
+    // 優先從本地存儲讀取
+    const savedData = localStorage.getItem(`cloud_db_${workspaceId}`);
     if (savedData) {
       const parsed = JSON.parse(savedData);
-      if (parsed.tasks) {
+      if (parsed.tasks && parsed.tasks.length > 0) {
         setTasks(parsed.tasks);
         setImportCount(parsed.tasks.length);
+      } else {
+        // 如果本地資料為空，自動觸發同步
+        if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
       }
+    } else if (settings.googleSheetId) {
+      // 首次部署，自動從 Google Sheets 拉取
+      importFromGoogleSheets(settings.googleSheetId);
     }
-    if (settings.googleSheetId) importFromGoogleSheets(settings.googleSheetId);
     
     return () => window.removeEventListener('resize', handleResize);
   }, [workspaceId, importFromGoogleSheets, settings.googleSheetId]);
