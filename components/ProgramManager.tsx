@@ -1,10 +1,7 @@
 
 import React, { useState } from 'react';
 import { Program, Task } from '../types.ts';
-import { Plus, Trash2, LayoutList, Clock, Info, Check, X, BarChart3, Edit3, Type, Truck, PlayCircle, MonitorPlay } from 'lucide-react';
-import { endOfMonth, isWithinInterval } from 'date-fns';
-import startOfMonth from 'date-fns/startOfMonth';
-import parseISO from 'date-fns/parseISO';
+import { Plus, Trash2, LayoutList, Clock, Check, X, Edit3, Type, Truck, PlayCircle, MonitorPlay } from 'lucide-react';
 
 interface Props {
   programs: Program[];
@@ -16,11 +13,11 @@ interface Props {
 const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTasks }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formState, setFormState] = useState({ 
+  const [formState, setFormState] = useState<Omit<Program, 'id' | 'updatedAt'>>({ 
     name: '', 
     description: '', 
     duration: '', 
-    priority: 'Medium' as const,
+    priority: 'Medium',
     productionDate: '',
     deliveryDate: '',
     premiereDate: ''
@@ -30,14 +27,20 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     if (!formState.name) return;
 
     if (editingId) {
+      // 修改現有節目
       const oldProg = programs.find(p => p.id === editingId);
       if (oldProg && oldProg.name !== formState.name) {
-        // 同步更新所有已存在任務的節目名稱
+        // 同步更新所有已存在任務的節目名稱，確保排程不會消失
         setTasks(prev => prev.map(t => t.show === oldProg.name ? { ...t, show: formState.name } : t));
       }
       setPrograms(prev => prev.map(p => p.id === editingId ? { ...p, ...formState, updatedAt: new Date().toISOString() } : p));
     } else {
-      setPrograms(prev => [...prev, { id: 'p' + Date.now(), ...formState, updatedAt: new Date().toISOString() }]);
+      // 新增節目
+      setPrograms(prev => [...prev, { 
+        id: 'p' + Date.now(), 
+        ...formState, 
+        updatedAt: new Date().toISOString() 
+      }]);
     }
 
     resetForm();
@@ -172,7 +175,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
         {programs.map(prog => {
           const totalEps = tasks.filter(t => t.show === prog.name).length;
           return (
@@ -206,12 +209,14 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
                   <button 
                     onClick={() => startEdit(prog)}
                     className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    title="編輯節目"
                   >
                     <Edit3 size={18} />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除此節目資產？這不會刪除排程，但會失去規格紀錄。')) setPrograms(prev => prev.filter(x => x.id !== prog.id)); }}
                     className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    title="刪除節目"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -233,7 +238,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
               <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-between relative z-10">
                 <div className="flex items-center space-x-2">
                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">系統連動中</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">規格同步中</span>
                 </div>
                 <span className="text-[10px] font-black text-slate-200 uppercase tracking-[0.3em] font-mono">{prog.id.slice(-8)}</span>
               </div>
