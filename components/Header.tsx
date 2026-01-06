@@ -74,8 +74,18 @@ const Header: React.FC<Props> = ({
 
   const syncUI = getSyncUI();
 
+  // 手機版加入 safe-area-inset-top
+  const headerStyle = isMobile ? {
+    paddingTop: 'calc(env(safe-area-inset-top) + 8px)',
+    height: 'auto',
+    paddingBottom: '8px'
+  } : {};
+
   return (
-    <header className={`${isMobile ? 'h-14 px-4' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative`}>
+    <header 
+      style={headerStyle}
+      className={`${isMobile ? 'px-4' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative transition-all`}
+    >
       <div className="flex-1 max-w-lg mr-2 flex items-center space-x-2">
         <div className="relative group flex-1">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-indigo-500' : 'text-slate-400'}`} size={isMobile ? 14 : 16} />

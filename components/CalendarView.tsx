@@ -5,7 +5,7 @@ import {
   format, endOfMonth, eachDayOfInterval, 
   isSameDay, addMonths, isToday, 
   endOfWeek, isWithinInterval, differenceInDays,
-  setYear, getYear, isAfter, startOfYear
+  setYear, getYear, isAfter, startOfYear, startOfDay, endOfDay
 } from 'date-fns';
 import startOfMonth from 'date-fns/startOfMonth';
 import subMonths from 'date-fns/subMonths';
@@ -22,15 +22,11 @@ interface CalendarViewProps {
 
 const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors, isMobile }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(startOfDay(new Date()));
 
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   
-  const jumpToYear = (year: number) => {
-    setCurrentDate(setYear(currentDate, year));
-  };
-
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(monthStart);
@@ -45,34 +41,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
     return rows;
   }, [weeks]);
 
-  const currentMonthTasks = useMemo(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
-    return tasks.filter(t => {
-      try {
-        const tStart = parseISO(t.startDate);
-        const tEnd = parseISO(t.endDate);
-        return (tStart <= end && tEnd >= start);
-      } catch (e) { return false; }
-    });
-  }, [tasks, currentDate]);
-
-  const hasFutureTasks = useMemo(() => {
-    const nextYear = startOfYear(setYear(new Date(), 2026));
-    return tasks.some(t => {
-      try {
-        const tStart = parseISO(t.startDate);
-        return isAfter(tStart, nextYear) || getYear(tStart) === 2026;
-      } catch(e) { return false; }
-    });
-  }, [tasks]);
-
+  // 修改此處：標準化比對邏輯，確保當天有任務時能正確顯示
   const tasksForSelectedDay = useMemo(() => {
+    const checkDay = startOfDay(selectedDay);
     return tasks.filter(t => {
       try {
-        const start = parseISO(t.startDate);
-        const end = parseISO(t.endDate);
-        return isWithinInterval(selectedDay, { start, end });
+        const start = startOfDay(parseISO(t.startDate));
+        const end = endOfDay(parseISO(t.endDate));
+        // 如果選中的日子在該任務的開始與結束區間內
+        return isWithinInterval(checkDay, { start, end });
       } catch (e) { return false; }
     });
   }, [tasks, selectedDay]);
@@ -113,8 +90,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
       });
   };
 
-  const currentYear = getYear(currentDate);
-
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden relative">
       <div className={`${isMobile ? 'px-4 py-3' : 'px-10 py-6'} border-b border-slate-100 flex items-center justify-between bg-white z-30 shrink-0`}>
@@ -126,7 +101,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
 
         <div className="flex bg-slate-100 p-0.5 rounded-xl">
           <button onClick={handlePrevMonth} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronLeft size={16} /></button>
-          <button onClick={() => {setCurrentDate(new Date()); setSelectedDay(new Date());}} className="px-3 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">Today</button>
+          <button onClick={() => {setCurrentDate(new Date()); setSelectedDay(startOfDay(new Date()));}} className="px-3 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">Today</button>
           <button onClick={handleNextMonth} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronRight size={16} /></button>
         </div>
       </div>
@@ -144,11 +119,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
               <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
                 {week.map((day, dayIdx) => {
                   const isCurMonth = isWithinInterval(day, { start: startOfMonth(currentDate), end: endOfMonth(currentDate) });
-                  const isSel = isSameDay(day, selectedDay);
+                  const isSel = isSameDay(startOfDay(day), selectedDay);
                   return (
                     <div 
                       key={dayIdx} 
-                      onClick={() => setSelectedDay(day)}
+                      onClick={() => setSelectedDay(startOfDay(day))}
                       className={`border-r border-slate-50 p-1 md:p-4 pointer-events-auto cursor-pointer transition-colors ${!isCurMonth ? 'bg-slate-50/10' : 'hover:bg-indigo-50/30'} ${isSel ? 'bg-indigo-50/50' : ''}`}
                     >
                       <span className={`text-[10px] md:text-sm font-black flex items-center justify-center w-6 h-6 md:w-7 md:h-7 ${isToday(day) ? 'bg-slate-900 text-white rounded-lg' : isSel ? 'text-indigo-600' : 'text-slate-800'}`}>
@@ -166,7 +141,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
         </div>
 
         {isMobile && (
-          <div className="border-t border-slate-100 p-6 bg-slate-50/50 min-h-[200px]">
+          <div className="border-t border-slate-100 p-6 bg-slate-50/50 min-h-[250px] pb-24">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
               <Clock size={12} className="mr-2" /> 
               {format(selectedDay, 'MMM d日')} 排程清單
@@ -189,6 +164,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onEditTask, editors,
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">{t.episode} • {t.editor}</p>
                       </div>
                     </div>
+                    <ArrowRight size={14} className="text-slate-200" />
                   </div>
                 ))
               ) : (
