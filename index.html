@@ -18,12 +18,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <script>
-    // 在最早期捕獲所有錯誤
     window.addEventListener('error', function(e) {
-      const console = document.getElementById('error-console');
-      if (console) {
-        console.style.display = 'block';
-        console.innerHTML = `
+      const consoleBox = document.getElementById('error-console');
+      if (consoleBox) {
+        consoleBox.style.display = 'block';
+        consoleBox.innerHTML = `
           <div style="font-weight: 900; font-size: 18px; border-bottom: 2px solid #fb7185; margin-bottom: 15px; padding-bottom: 10px;">系統初始化異常</div>
           <div style="color: #fda4af;">[Error]: ${e.message}</div>
           <div style="margin-top: 10px; opacity: 0.7; font-size: 11px;">Source: ${e.filename}:${e.lineno}</div>

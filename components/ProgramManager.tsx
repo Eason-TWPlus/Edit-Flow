@@ -31,10 +31,10 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     }
 
     if (editingId) {
-      // 編輯模式
+      // 修改模式
       const oldProg = programs.find(p => p.id === editingId);
       if (oldProg && oldProg.name !== trimmedName) {
-        // 同步更新所有相關任務的節目名稱，這非常重要！
+        // 重要：當節目改名時，所有排程上的任務名稱也要連動更新，否則會找不到對應
         setTasks(prev => prev.map(t => t.show === oldProg.name ? { ...t, show: trimmedName } : t));
       }
       
@@ -90,7 +90,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
     <div className="p-8 h-full overflow-y-auto custom-scrollbar bg-slate-50/50">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase italic">節目資產庫</h2>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase italic">節目規範庫</h2>
           <p className="text-slate-500 text-[10px] mt-1 uppercase tracking-widest font-black opacity-40">Program Master Specs</p>
         </div>
         {!showAdd && (
@@ -99,7 +99,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black flex items-center space-x-2 transition-all shadow-xl shadow-indigo-500/20 active:scale-95 text-xs uppercase tracking-widest"
           >
             <Plus size={18} />
-            <span>建立新節目</span>
+            <span>建立新節目規範</span>
           </button>
         )}
       </div>
@@ -108,16 +108,16 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
         <div className="mb-8 p-8 bg-white rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/40 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">
-              {editingId ? '✎ 修改節目資產' : '✦ 初始化新節目'}
+              {editingId ? '✎ 修改節目規範' : '✦ 初始化新節目'}
             </h3>
             <button onClick={resetForm} className="text-slate-300 hover:text-slate-900"><X size={24}/></button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">節目正式名稱</label>
+              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">節目名稱</label>
               <input 
-                placeholder="例如: TaiwanPlus News" 
+                placeholder="例如: Finding Formosa" 
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-lg"
                 value={formState.name}
                 onChange={e => setFormState({...formState, name: e.target.value})}
@@ -135,7 +135,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
             
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">
-                <Type size={12}/> <span>製作日</span>
+                <Type size={12}/> <span>製作日週期</span>
               </label>
               <input 
                 placeholder="例如: 每週一 14:00"
@@ -146,10 +146,10 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
             </div>
             <div className="space-y-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">
-                <Truck size={12}/> <span>交播限時</span>
+                <Truck size={12}/> <span>交播期限</span>
               </label>
               <input 
-                placeholder="例如: 首播前 24h"
+                placeholder="例如: 播出前 48h"
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                 value={formState.deliveryDate}
                 onChange={e => setFormState({...formState, deliveryDate: e.target.value})}
@@ -160,7 +160,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
                 <PlayCircle size={12}/> <span>首播時段</span>
               </label>
               <input 
-                placeholder="例如: 每週五 20:00"
+                placeholder="例如: 每週五 21:00"
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                 value={formState.premiereDate}
                 onChange={e => setFormState({...formState, premiereDate: e.target.value})}
@@ -168,7 +168,7 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
             </div>
 
             <div className="md:col-span-3 space-y-2">
-              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">備註與規範</label>
+              <label className="text-[10px] font-black text-slate-400 ml-1 uppercase tracking-widest">剪輯規範備註</label>
               <textarea 
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium h-32 resize-none leading-relaxed"
                 value={formState.description}
@@ -178,9 +178,9 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
           </div>
           
           <div className="mt-8 flex justify-end space-x-4">
-             <button onClick={resetForm} className="px-6 py-3 font-bold text-slate-400 hover:text-slate-600 transition-all text-xs uppercase tracking-widest">取消</button>
+             <button onClick={resetForm} className="px-6 py-3 font-bold text-slate-400 hover:text-slate-600 transition-all text-xs uppercase tracking-widest">放棄變更</button>
              <button onClick={handleSave} className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl active:scale-95">
-                {editingId ? '確認修改' : '完成新增'}
+                {editingId ? '儲存修改' : '確認新增'}
              </button>
           </div>
         </div>
@@ -201,20 +201,21 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-slate-900 tracking-tight">{prog.name}</h3>
-                    <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mt-1">累計產出 {totalEps} 集</p>
+                    <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mt-1">累積製作 {totalEps} 集</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
                   <button 
                     onClick={() => startEdit(prog)}
                     className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="修改節目"
+                    title="編輯節目資產"
                   >
                     <Edit3 size={18} />
                   </button>
                   <button 
-                    onClick={(e) => { if(confirm(`確定刪除節目「${prog.name}」？`)) setPrograms(prev => prev.filter(x => x.id !== prog.id)); }}
+                    onClick={(e) => { if(confirm(`確定刪除「${prog.name}」？此操作不影響已存在的排程項目，但未來新增排程時將無法選擇此節目。`)) setPrograms(prev => prev.filter(x => x.id !== prog.id)); }}
                     className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    title="移除節目"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -222,9 +223,9 @@ const ProgramManager: React.FC<Props> = ({ programs, setPrograms, tasks, setTask
               </div>
 
               <div className="grid grid-cols-3 gap-3 mb-6 relative z-10">
-                <SpecItem icon={<Type size={12}/>} label="週期" value={prog.productionDate} />
-                <SpecItem icon={<Truck size={12}/>} label="交播" value={prog.deliveryDate} />
-                <SpecItem icon={<PlayCircle size={12}/>} label="首播" value={prog.premiereDate} />
+                <SpecItem icon={<Type size={12}/>} label="製作日" value={prog.productionDate} />
+                <SpecItem icon={<Truck size={12}/>} label="交播日" value={prog.deliveryDate} />
+                <SpecItem icon={<PlayCircle size={12}/>} label="首播日" value={prog.premiereDate} />
               </div>
 
               {prog.description && (

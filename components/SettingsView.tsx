@@ -33,7 +33,6 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
       const a = document.createElement('a');
       a.href = url; a.download = `editflow_backup_${settings.id}.json`; a.click();
     } else {
-      // 針對 Google Sheets 優化的 CSV 欄位順序
       const headers = ['ID', 'Show', 'Episode', 'Editor', 'StartDate', 'EndDate', 'Notes'].map(escapeCSV).join(',');
       const rows = tasks.map(t => [
         t.id, t.show, t.episode, t.editor, t.startDate, t.endDate, t.notes || ''
@@ -65,7 +64,6 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         
-        {/* Google Sheets 整合面板 */}
         <section className="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 shadow-sm flex flex-col relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <Table size={120} className="text-emerald-900" />
@@ -96,7 +94,7 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
 
             <div className="bg-white p-5 rounded-2xl border border-emerald-100 space-y-3">
               <p className="text-[11px] text-emerald-700 leading-relaxed">
-                <b>同步原理：</b>系統會從指定試算表的第一個工作表抓取資料。請確保試算表已開啟「知道連結的使用者即可檢視」權限。
+                <b>同步原理：</b>系統會從指定試算表的第一個工作表抓取資料。請確保試算表已開啟「發佈到網路」權限。
               </p>
               <button 
                 onClick={handleGoogleSync}
@@ -110,7 +108,6 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
           </div>
         </section>
 
-        {/* 本地資料備份 */}
         <section className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
           <div className="flex items-center space-x-3 mb-6">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Database size={20} /></div>
@@ -131,7 +128,7 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
 
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                 若要將此 App 的資料導入 Google Sheet，請下載 CSV 後，在試算表中選擇「檔案 > 匯入 > 上傳」，並選擇此 CSV 檔案。
+                 若要將此 App 的資料導入 Google Sheet，請下載 CSV 後，在試算表中選擇「檔案 &gt; 匯入 &gt; 上傳」，並選擇此 CSV 檔案。
                </p>
             </div>
           </div>
@@ -154,7 +151,7 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
       </div>
 
       <div className="mt-auto flex items-center justify-between opacity-30 py-8 border-t border-slate-100">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Build v2.5.0 - Sheets Sync Active</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Build v2.6.0 - Syntax Fixed</span>
         <button onClick={onReset} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">重置所有資料</button>
       </div>
     </div>
