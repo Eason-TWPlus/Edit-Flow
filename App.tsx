@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar.tsx';
 import MobileNav from './components/MobileNav.tsx';
 import Header from './components/Header.tsx';
 import CalendarView from './components/CalendarView.tsx';
-import TimelineView from './components/TimelineView.tsx';
 import TaskModal from './components/TaskModal.tsx';
 import FilterBar from './components/FilterBar.tsx';
 import MemberManager from './components/MemberManager.tsx';
@@ -208,7 +207,6 @@ const App: React.FC = () => {
             {(() => {
               switch(currentView) {
                 case 'calendar': return <CalendarView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} isMobile={isMobile} />;
-                case 'timeline': return <TimelineView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={editors} />;
                 case 'stats': return <StatsView tasks={tasks} editors={editors} programs={programs} />;
                 case 'team': return <MemberManager editors={editors} setEditors={setEditors} tasks={tasks} setTasks={setTasks} />;
                 case 'programs': return <ProgramManager programs={programs} setPrograms={setPrograms} tasks={tasks} setTasks={setTasks} />;

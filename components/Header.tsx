@@ -11,7 +11,7 @@ interface Props {
   searchTerm: string;
   setSearchTerm: (s: string) => void;
   activities: Activity[];
-  onAddTask?: () => void;
+  onAddTask: () => void;
   onOpenCollab?: () => void;
   editors: Editor[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
@@ -76,20 +76,30 @@ const Header: React.FC<Props> = ({
 
   return (
     <header className={`${isMobile ? 'h-14 px-4' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative`}>
-      <div className="flex-1 max-w-lg mr-4 flex items-center space-x-2">
+      <div className="flex-1 max-w-lg mr-2 flex items-center space-x-2">
         <div className="relative group flex-1">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-indigo-500' : 'text-slate-400'}`} size={isMobile ? 14 : 16} />
           <input 
             type="text" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={isMobile ? "搜尋任務..." : "搜尋節目、集數、剪輯師..."}
+            placeholder={isMobile ? "搜尋項目..." : "搜尋節目、集數、剪輯師..."}
             className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-8 pr-8 focus:ring-2 ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-xs font-medium"
           />
         </div>
       </div>
       
       <div className="flex items-center space-x-2 md:space-x-4">
+        {isMobile && (
+          <button 
+            onClick={onAddTask}
+            className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+            title="新增排程"
+          >
+            <Plus size={18} />
+          </button>
+        )}
+
         <button 
           onClick={onRefresh}
           className={`p-2 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${syncStatus === 'syncing' ? 'opacity-50 cursor-not-allowed' : ''}`}

@@ -33,7 +33,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddTask, insights, currentView, set
       <nav className="flex-1 space-y-1">
         <div className="pb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50">工作視圖</div>
         <NavItem icon={<LayoutGrid size={18} />} label="排程月曆" active={currentView === 'calendar'} onClick={() => setCurrentView('calendar')} />
-        <NavItem icon={<CalendarDays size={18} />} label="甘特圖軸" active={currentView === 'timeline'} onClick={() => setCurrentView('timeline')} />
         <NavItem icon={<BarChart3 size={18} />} label="數據報表" active={currentView === 'stats'} onClick={() => setCurrentView('stats')} />
         
         <div className="pt-6 pb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50">資源管理</div>
