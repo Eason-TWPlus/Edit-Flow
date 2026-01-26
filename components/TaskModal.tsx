@@ -48,7 +48,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
 
   // 顯著增加手機版頂部安全距離，防止被遮擋
   const headerStyle = isMobile ? {
-    paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+    paddingTop: 'calc(env(safe-area-inset-top) + 32px)',
     paddingBottom: '20px'
   } : {};
 
@@ -57,7 +57,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
       <div className={contentClasses}>
         <div 
           style={headerStyle}
-          className={`${isMobile ? 'px-6' : 'p-8'} border-b border-slate-100 bg-white sticky top-0 z-10`}
+          className={`${isMobile ? 'px-6 shadow-sm' : 'p-8'} border-b border-slate-100 bg-white sticky top-0 z-10`}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3">
@@ -74,8 +74,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
           </div>
           <div className="flex items-center space-x-4">
              <div className="flex items-center space-x-1.5">
-               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">資料將即時存回本地</span>
+               <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></div>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">資料將自動儲存並同步</span>
              </div>
           </div>
         </div>
@@ -90,7 +90,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               version: (task?.version || 0) + 1 
             }); 
           }} 
-          className={`${isMobile ? 'p-6 pb-40' : 'p-10'} space-y-8`}
+          className={`${isMobile ? 'p-6 pb-48' : 'p-10'} space-y-8`}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
@@ -162,7 +162,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
             </div>
           </div>
 
-          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom pb-10' : ''}`}>
+          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom pb-12' : ''}`}>
             <button type="submit" className="flex-1 py-5 bg-slate-900 text-white rounded-2xl font-black shadow-2xl hover:bg-black transition-all uppercase tracking-[0.2em] text-sm active:scale-95">
               {task ? '儲存異動' : '發佈任務'}
             </button>
