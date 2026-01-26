@@ -76,15 +76,15 @@ const Header: React.FC<Props> = ({
 
   // 手機版增加頂部安全距離，防止被 iOS 狀態列擋住
   const headerStyle = isMobile ? {
-    paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+    paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
     height: 'auto',
-    paddingBottom: '12px'
+    paddingBottom: '16px'
   } : {};
 
   return (
     <header 
       style={headerStyle}
-      className={`${isMobile ? 'px-4' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative transition-all`}
+      className={`${isMobile ? 'px-4 shadow-sm' : 'h-16 px-8'} flex items-center justify-between bg-white border-b border-slate-200 shrink-0 z-30 relative transition-all`}
     >
       <div className="flex-1 max-w-lg mr-2 flex items-center space-x-2">
         <div className="relative group flex-1">
@@ -93,7 +93,7 @@ const Header: React.FC<Props> = ({
             type="text" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={isMobile ? "搜尋項目..." : "搜尋節目、集數、剪輯師..."}
+            placeholder={isMobile ? "搜尋內容..." : "搜尋節目、集數、剪輯師..."}
             className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-8 pr-8 focus:ring-2 ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-xs font-medium"
           />
         </div>
@@ -118,17 +118,6 @@ const Header: React.FC<Props> = ({
           <RefreshCw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
         </button>
 
-        {!isMobile && (
-          <div className="flex flex-col items-end mr-2">
-            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${syncStatus === 'error' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'syncing' ? 'animate-pulse' : ''} ${syncUI.color}`}></div>
-              <span className={`text-[10px] font-black uppercase tracking-tighter ${syncStatus === 'error' ? 'text-red-600' : 'text-slate-500'}`}>
-                {syncUI.text}
-              </span>
-            </div>
-          </div>
-        )}
-
         <div className="relative" ref={notificationRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
@@ -145,14 +134,17 @@ const Header: React.FC<Props> = ({
                   <Zap size={12} className="mr-1.5 text-amber-500" /> 即時異動紀錄
                 </span>
               </div>
-              <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
                 {activities.length === 0 ? (
-                  <div className="p-8 text-center text-slate-300 text-[10px] font-bold uppercase tracking-widest">無最新動態</div>
+                  <div className="p-12 text-center text-slate-300 text-[10px] font-bold uppercase tracking-widest">目前尚無紀錄</div>
                 ) : (
                   activities.map(activity => (
-                    <div key={activity.id} className="p-4 border-b border-slate-50 last:border-0">
-                      <p className="text-xs font-bold text-slate-800 leading-tight">{activity.details}</p>
-                      <span className="text-[9px] text-slate-300 uppercase font-black mt-1 block">
+                    <div key={activity.id} className="p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-start space-x-2">
+                        <div className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${activity.type === 'create' ? 'bg-emerald-500' : activity.type === 'delete' ? 'bg-red-500' : activity.type === 'sync' ? 'bg-blue-500' : 'bg-amber-500'}`} />
+                        <p className="text-xs font-bold text-slate-800 leading-tight">{activity.details}</p>
+                      </div>
+                      <span className="text-[9px] text-slate-300 uppercase font-black mt-1 ml-3.5 block">
                         {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true, locale: zhTW })}
                       </span>
                     </div>

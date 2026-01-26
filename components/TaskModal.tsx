@@ -46,10 +46,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
     ? "flex-1 overflow-y-auto" 
     : "bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200";
 
-  // 手機版頂部增加安全邊距
+  // 顯著增加手機版頂部安全距離，防止被遮擋
   const headerStyle = isMobile ? {
-    paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
-    paddingBottom: '16px'
+    paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+    paddingBottom: '20px'
   } : {};
 
   return (
@@ -61,9 +61,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-3">
-              {isMobile && <button onClick={onClose} className="p-1"><ChevronLeft size={24} /></button>}
-              <h2 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-black tracking-tighter uppercase italic text-slate-800`}>
-                {task ? '編輯排程項目' : '建立新製作任務'}
+              {isMobile && <button onClick={onClose} className="p-2 -ml-2 text-slate-400 hover:text-slate-900"><ChevronLeft size={28} /></button>}
+              <h2 className={`${isMobile ? 'text-2xl' : 'text-2xl'} font-black tracking-tighter uppercase italic text-slate-800`}>
+                {task ? '編輯排程' : '建立任務'}
               </h2>
             </div>
             {!isMobile && (
@@ -75,18 +75,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
           <div className="flex items-center space-x-4">
              <div className="flex items-center space-x-1.5">
                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">正在進行雲端同步</span>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">資料將即時存回本地</span>
              </div>
-             {task?.lastEditedAt && (
-               <div className="flex items-center space-x-1.5 text-slate-300">
-                 <Clock size={12} />
-                 <span className="text-[10px] font-bold">最後更新：{format(new Date(task.lastEditedAt), 'HH:mm', { locale: zhTW })}</span>
-               </div>
-             )}
           </div>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: task?.id || '', ...formData, lastEditedAt: new Date().toISOString(), version: (task?.version || 0) + 1 }); }} className={`${isMobile ? 'p-6 pb-32' : 'p-10'} space-y-8`}>
+        <form 
+          onSubmit={(e) => { 
+            e.preventDefault(); 
+            onSave({ 
+              id: task?.id || `local_${Date.now()}`, 
+              ...formData, 
+              lastEditedAt: new Date().toISOString(), 
+              version: (task?.version || 0) + 1 
+            }); 
+          }} 
+          className={`${isMobile ? 'p-6 pb-40' : 'p-10'} space-y-8`}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2">
               <label className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -151,15 +156,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ task, programs, editors, onClose,
               <textarea 
                 value={formData.notes}
                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="輸入給團隊的特別指示、素材位置或製作重點..."
+                placeholder="輸入給團隊的特別指示..."
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-5 h-32 outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all font-medium"
               />
             </div>
           </div>
 
-          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom pb-8' : ''}`}>
+          <div className={`flex items-center space-x-4 pt-4 ${isMobile ? 'fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 safe-area-bottom pb-10' : ''}`}>
             <button type="submit" className="flex-1 py-5 bg-slate-900 text-white rounded-2xl font-black shadow-2xl hover:bg-black transition-all uppercase tracking-[0.2em] text-sm active:scale-95">
-              {task ? '儲存異動並同步' : '發佈製作任務'}
+              {task ? '儲存異動' : '發佈任務'}
             </button>
             {task && (
               <button 
