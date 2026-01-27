@@ -13,73 +13,81 @@ import SettingsView from './components/SettingsView.tsx';
 import StatsView from './components/StatsView.tsx';
 import { SHOWS, EDITORS, EDITOR_COLORS } from './constants.tsx';
 
+// 定義唯一版本化金鑰，確保不與舊版髒資料衝突
+const MASTER_KEY = "EDITFLOW_STORAGE_V3_MASTER";
+
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const workspaceId = "TWP_PRO_01";
-  
-  // 儲存金鑰定義
-  const KEY_TASKS = `db_tasks_${workspaceId}`;
-  const KEY_ACTIVITY = `db_act_${workspaceId}`;
-  const KEY_SETTINGS = `db_set_${workspaceId}`;
-  const KEY_PROGRAMS = `db_prog_${workspaceId}`;
-  const KEY_EDITORS = `db_edit_${workspaceId}`;
 
-  // --- 1. 核心狀態初始化 (僅在啟動時執行一次) ---
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem(KEY_TASKS);
-    if (!saved) return [];
+  // --- 1. 同步讀取初始化 (確保第一秒就有資料) ---
+  const loadInitialData = () => {
+    const saved = localStorage.getItem(MASTER_KEY);
+    if (!saved) return null;
     try {
-      const parsed = JSON.parse(saved);
-      // 兼容舊格式與新格式 (陣列直存)
-      return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
-    } catch { return []; }
-  });
+      return JSON.parse(saved);
+    } catch (e) {
+      console.error("資料解析失敗", e);
+      return null;
+    }
+  };
 
-  const [programs, setPrograms] = useState<Program[]>(() => {
-    const saved = localStorage.getItem(KEY_PROGRAMS);
-    return saved ? JSON.parse(saved) : SHOWS.map(s => ({ id: s.toLowerCase().replace(/\s+/g, '-'), name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' }));
-  });
+  const initialData = loadInitialData();
 
-  const [editors, setEditors] = useState<Editor[]>(() => {
-    const saved = localStorage.getItem(KEY_EDITORS);
-    return saved ? JSON.parse(saved) : EDITORS.map(e => ({ id: e.toLowerCase(), name: e, color: EDITOR_COLORS[e] || '#cbd5e1', updatedAt: new Date().toISOString(), role: 'Editor', notes: '' }));
-  });
-
-  const [activities, setActivities] = useState<Activity[]>(() => {
-    const saved = localStorage.getItem(KEY_ACTIVITY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [settings, setSettings] = useState<WorkspaceSettings>(() => {
-    const saved = localStorage.getItem(KEY_SETTINGS);
-    return saved ? JSON.parse(saved) : { id: workspaceId, companyName: 'TaiwanPlus', workingDays: [1,2,3,4,5], syncStatus: 'synced', lastSyncedAt: new Date().toISOString(), googleSheetId: '1FWZXvZjghfOjT8JkW-SGZMrLCP3oyI7K3I71kEUmc1w' };
+  const [tasks, setTasks] = useState<Task[]>(initialData?.tasks || []);
+  const [activities, setActivities] = useState<Activity[]>(initialData?.activities || []);
+  const [programs, setPrograms] = useState<Program[]>(initialData?.programs || SHOWS.map(s => ({ 
+    id: s.toLowerCase().replace(/\s+/g, '-'), 
+    name: s, 
+    updatedAt: new Date().toISOString(), 
+    priority: 'Medium', 
+    duration: '24:00', 
+    description: '' 
+  })));
+  const [editors, setEditors] = useState<Editor[]>(initialData?.editors || EDITORS.map(e => ({ 
+    id: e.toLowerCase(), 
+    name: e, 
+    color: EDITOR_COLORS[e] || '#cbd5e1', 
+    updatedAt: new Date().toISOString(), 
+    role: 'Editor', 
+    notes: '' 
+  })));
+  const [settings, setSettings] = useState<WorkspaceSettings>(initialData?.settings || { 
+    id: "TWP_PRO_01", 
+    companyName: 'TaiwanPlus', 
+    workingDays: [1,2,3,4,5], 
+    syncStatus: 'synced', 
+    lastSyncedAt: new Date().toISOString(), 
+    googleSheetId: '1FWZXvZjghfOjT8JkW-SGZMrLCP3oyI7K3I71kEUmc1w' 
   });
 
   const [importCount, setImportCount] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const isSyncing = useRef(false);
 
-  // --- 2. 核心存檔邏輯：統一監控所有資料變動 ---
+  // --- 2. 核心持久化監控 (只要有變動，立即整包存檔) ---
   useEffect(() => {
-    // 每次狀態改變都「整包」寫入，確保異動紀錄與任務一致
-    localStorage.setItem(KEY_TASKS, JSON.stringify(tasks));
-    localStorage.setItem(KEY_ACTIVITY, JSON.stringify(activities));
-    localStorage.setItem(KEY_PROGRAMS, JSON.stringify(programs));
-    localStorage.setItem(KEY_EDITORS, JSON.stringify(editors));
-    localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+    const bundle = {
+      tasks,
+      activities,
+      programs,
+      editors,
+      settings,
+      lastSaved: new Date().toISOString()
+    };
+    localStorage.setItem(MASTER_KEY, JSON.stringify(bundle));
   }, [tasks, activities, programs, editors, settings]);
 
-  // --- 3. 功能邏輯 ---
+  // --- 3. 動作邏輯 ---
   const addActivity = useCallback((type: Activity['type'], details: string) => {
     setActivities(prev => {
-      const newActivity: Activity = {
-        id: `act_${Date.now()}`,
+      const newAct: Activity = {
+        id: `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type,
         userName: '您',
         timestamp: new Date().toISOString(),
         details
       };
-      return [newActivity, ...prev].slice(0, 50);
+      return [newAct, ...prev].slice(0, 100); // 增加保留紀錄到 100 筆
     });
   }, []);
 
@@ -105,11 +113,11 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("連線失敗，請檢查權限。");
+      if (!response.ok) throw new Error("同步失敗，請確認試算表權限設定。");
       
       const csvData = await response.text();
       const lines = csvData.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length < 2) throw new Error("試算表無資料。");
+      if (lines.length < 2) throw new Error("試算表內無資料。");
 
       const splitLine = (text: string) => {
         const result = [];
@@ -153,7 +161,7 @@ const App: React.FC = () => {
       setTasks(mappedTasks);
       setImportCount(mappedTasks.length);
       setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
-      addActivity('sync', `雲端載入：更新 ${mappedTasks.length} 筆資料`);
+      addActivity('sync', `雲端同步成功：已載入 ${mappedTasks.length} 筆資料`);
       return true;
     } catch (e: any) {
       setSyncError(e.message);
@@ -168,7 +176,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
-    // 徹底移除自動同步，避免蓋掉本地修改
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -207,7 +214,7 @@ const App: React.FC = () => {
                 case 'stats': return <StatsView tasks={tasks} editors={editors} programs={programs} />;
                 case 'team': return <MemberManager editors={editors} setEditors={setEditors} tasks={tasks} setTasks={setTasks} />;
                 case 'programs': return <ProgramManager programs={programs} setPrograms={setPrograms} tasks={tasks} setTasks={setTasks} />;
-                case 'settings': return <SettingsView settings={settings} setSettings={setSettings} tasks={tasks} setTasks={setTasks} programs={programs} setPrograms={setPrograms} editors={editors} setEditors={setEditors} onReset={() => {localStorage.clear(); window.location.reload();}} onSyncGoogleSheets={importFromGoogleSheets} />;
+                case 'settings': return <SettingsView settings={settings} setSettings={setSettings} tasks={tasks} setTasks={setTasks} programs={programs} setPrograms={setPrograms} editors={editors} setEditors={setEditors} onReset={() => { if(confirm('確定要清除所有資料？')){ localStorage.removeItem(MASTER_KEY); window.location.reload(); }}} onSyncGoogleSheets={importFromGoogleSheets} />;
                 default: return null;
               }
             })()}
@@ -221,15 +228,19 @@ const App: React.FC = () => {
           onClose={() => { setEditingTask(null); setIsModalOpen(false); }}
           onSave={(t) => {
             const isUpdate = tasks.some(x => x.id === t.id);
-            setTasks(prev => isUpdate ? prev.map(x => x.id === t.id ? t : x) : [...prev, t]);
-            // 異動紀錄移出 updater，確保渲染順序正確
-            addActivity(isUpdate ? 'update' : 'create', `${isUpdate ? '更新' : '新增'}：${t.show} ${t.episode}`);
+            if (isUpdate) {
+              setTasks(prev => prev.map(x => x.id === t.id ? t : x));
+              addActivity('update', `異動確認：${t.show} ${t.episode}`);
+            } else {
+              setTasks(prev => [...prev, t]);
+              addActivity('create', `新增排程：${t.show} ${t.episode}`);
+            }
             setIsModalOpen(false);
           }}
           onDelete={(id) => {
             const target = tasks.find(t => t.id === id);
             setTasks(prev => prev.filter(t => t.id !== id));
-            if (target) addActivity('delete', `移除：${target.show} ${target.episode}`);
+            if (target) addActivity('delete', `移除項目：${target.show} ${target.episode}`);
             setIsModalOpen(false);
           }}
         />
