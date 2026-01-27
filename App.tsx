@@ -18,19 +18,20 @@ const App: React.FC = () => {
   const workspaceId = "TWP_PRO_01";
   
   // 儲存金鑰定義
-  const KEY_TASKS = `cloud_db_${workspaceId}`;
-  const KEY_ACTIVITY = `activity_db_${workspaceId}`;
-  const KEY_SETTINGS = `settings_${workspaceId}`;
-  const KEY_PROGRAMS = `programs_${workspaceId}`;
-  const KEY_EDITORS = `editors_${workspaceId}`;
+  const KEY_TASKS = `db_tasks_${workspaceId}`;
+  const KEY_ACTIVITY = `db_act_${workspaceId}`;
+  const KEY_SETTINGS = `db_set_${workspaceId}`;
+  const KEY_PROGRAMS = `db_prog_${workspaceId}`;
+  const KEY_EDITORS = `db_edit_${workspaceId}`;
 
-  // --- 1. 核心狀態初始化 (僅從本地讀取一次) ---
+  // --- 1. 核心狀態初始化 (僅在啟動時執行一次) ---
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem(KEY_TASKS);
     if (!saved) return [];
     try {
       const parsed = JSON.parse(saved);
-      return Array.isArray(parsed.tasks) ? parsed.tasks : (Array.isArray(parsed) ? parsed : []);
+      // 兼容舊格式與新格式 (陣列直存)
+      return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
     } catch { return []; }
   });
 
@@ -58,25 +59,28 @@ const App: React.FC = () => {
   const [syncError, setSyncError] = useState<string | null>(null);
   const isSyncing = useRef(false);
 
-  // --- 2. 統一存檔 Effect (集中處理避免衝突) ---
+  // --- 2. 核心存檔邏輯：統一監控所有資料變動 ---
   useEffect(() => {
-    localStorage.setItem(KEY_TASKS, JSON.stringify({ tasks }));
+    // 每次狀態改變都「整包」寫入，確保異動紀錄與任務一致
+    localStorage.setItem(KEY_TASKS, JSON.stringify(tasks));
     localStorage.setItem(KEY_ACTIVITY, JSON.stringify(activities));
     localStorage.setItem(KEY_PROGRAMS, JSON.stringify(programs));
     localStorage.setItem(KEY_EDITORS, JSON.stringify(editors));
     localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
   }, [tasks, activities, programs, editors, settings]);
 
-  // --- 3. 核心功能邏輯 ---
+  // --- 3. 功能邏輯 ---
   const addActivity = useCallback((type: Activity['type'], details: string) => {
-    const newActivity: Activity = {
-      id: `act_${Date.now()}`,
-      type,
-      userName: '您',
-      timestamp: new Date().toISOString(),
-      details
-    };
-    setActivities(prev => [newActivity, ...prev].slice(0, 50));
+    setActivities(prev => {
+      const newActivity: Activity = {
+        id: `act_${Date.now()}`,
+        type,
+        userName: '您',
+        timestamp: new Date().toISOString(),
+        details
+      };
+      return [newActivity, ...prev].slice(0, 50);
+    });
   }, []);
 
   const normalizeDate = (dateStr: string): string => {
@@ -101,11 +105,11 @@ const App: React.FC = () => {
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("同步失敗，請確認試算表 ID。");
+      if (!response.ok) throw new Error("連線失敗，請檢查權限。");
       
       const csvData = await response.text();
       const lines = csvData.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length < 2) throw new Error("試算表內無有效資料。");
+      if (lines.length < 2) throw new Error("試算表無資料。");
 
       const splitLine = (text: string) => {
         const result = [];
@@ -149,12 +153,12 @@ const App: React.FC = () => {
       setTasks(mappedTasks);
       setImportCount(mappedTasks.length);
       setSettings(prev => ({ ...prev, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }));
-      addActivity('sync', `同步雲端：已載入 ${mappedTasks.length} 筆資料`);
+      addActivity('sync', `雲端載入：更新 ${mappedTasks.length} 筆資料`);
       return true;
     } catch (e: any) {
       setSyncError(e.message);
       setSettings(prev => ({ ...prev, syncStatus: 'error' }));
-      addActivity('sync', `同步出錯：${e.message}`);
+      addActivity('sync', `同步失敗：${e.message}`);
       return false;
     } finally {
       isSyncing.current = false;
@@ -164,16 +168,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
-    
-    // 重要：只有當「完全沒有本地資料」且「有 Sheet ID」時才自動拉取一次
-    // 防止每次重新整理都回溯到 Sheet 的舊版本
-    const saved = localStorage.getItem(KEY_TASKS);
-    if (!saved && settings.googleSheetId) {
-      importFromGoogleSheets(settings.googleSheetId);
-    }
-    
+    // 徹底移除自動同步，避免蓋掉本地修改
     return () => window.removeEventListener('resize', handleResize);
-  }, [settings.googleSheetId, importFromGoogleSheets, KEY_TASKS]);
+  }, []);
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
@@ -223,30 +220,16 @@ const App: React.FC = () => {
           task={editingTask} programs={programs} editors={editors} isMobile={isMobile}
           onClose={() => { setEditingTask(null); setIsModalOpen(false); }}
           onSave={(t) => {
-            setTasks(prev => {
-              const exists = prev.some(x => x.id === t.id);
-              let next;
-              if (exists) {
-                next = prev.map(x => x.id === t.id ? t : x);
-                addActivity('update', `變更：${t.show} ${t.episode}`);
-              } else {
-                next = [...prev, t];
-                addActivity('create', `新增：${t.show} ${t.episode}`);
-              }
-              // 手動立即存檔一次作為雙保險
-              localStorage.setItem(KEY_TASKS, JSON.stringify({ tasks: next }));
-              return next;
-            });
+            const isUpdate = tasks.some(x => x.id === t.id);
+            setTasks(prev => isUpdate ? prev.map(x => x.id === t.id ? t : x) : [...prev, t]);
+            // 異動紀錄移出 updater，確保渲染順序正確
+            addActivity(isUpdate ? 'update' : 'create', `${isUpdate ? '更新' : '新增'}：${t.show} ${t.episode}`);
             setIsModalOpen(false);
           }}
           onDelete={(id) => {
-            setTasks(prev => {
-              const taskToDelete = prev.find(t => t.id === id);
-              const next = prev.filter(t => t.id !== id);
-              if (taskToDelete) addActivity('delete', `刪除：${taskToDelete.show} ${taskToDelete.episode}`);
-              localStorage.setItem(KEY_TASKS, JSON.stringify({ tasks: next }));
-              return next;
-            });
+            const target = tasks.find(t => t.id === id);
+            setTasks(prev => prev.filter(t => t.id !== id));
+            if (target) addActivity('delete', `移除：${target.show} ${target.episode}`);
             setIsModalOpen(false);
           }}
         />
