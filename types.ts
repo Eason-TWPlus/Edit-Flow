@@ -16,7 +16,7 @@ export interface Task {
 
 export interface Activity {
   id: string;
-  type: 'create' | 'update' | 'delete' | 'join' | 'sync';
+  type: 'create' | 'update' | 'delete' | 'join' | 'sync' | 'push';
   userName: string;
   timestamp: string;
   details: string;
@@ -52,7 +52,8 @@ export interface WorkspaceSettings {
   id: string;
   companyName: string;
   workingDays: number[];
-  syncStatus: 'synced' | 'syncing' | 'offline' | 'error';
+  syncStatus: 'synced' | 'syncing' | 'offline' | 'error' | 'pending';
   lastSyncedAt?: string;
   googleSheetId?: string;
+  googleSheetWriteUrl?: string; // 雙向同步的 Webhook URL
 }

@@ -1,7 +1,7 @@
 
 import React, { useRef, useState } from 'react';
 import { WorkspaceSettings, Task, Program, Editor } from '../types';
-import { Building, ShieldCheck, Database, FileJson, FileText, UploadCloud, AlertCircle, Github, Server, CheckCircle2, Table, RefreshCw, ExternalLink } from 'lucide-react';
+import { Building, ShieldCheck, Database, FileJson, FileText, UploadCloud, AlertCircle, Github, Server, CheckCircle2, Table, RefreshCw, ExternalLink, Code2, Link2 } from 'lucide-react';
 
 interface Props {
   settings: WorkspaceSettings;
@@ -17,33 +17,7 @@ interface Props {
 }
 
 const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks, programs, setPrograms, editors, setEditors, onReset, onSyncGoogleSheets }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-
-  const escapeCSV = (str: string | undefined) => {
-    const text = str ? String(str) : "";
-    return `"${text.replace(/"/g, '""')}"`;
-  };
-
-  const exportData = (format: 'json' | 'csv') => {
-    const data = { tasks, programs, editors, settings };
-    if (format === 'json') {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `editflow_backup_${settings.id}.json`; a.click();
-    } else {
-      const headers = ['ID', 'Show', 'Episode', 'Editor', 'StartDate', 'EndDate', 'Notes'].map(escapeCSV).join(',');
-      const rows = tasks.map(t => [
-        t.id, t.show, t.episode, t.editor, t.startDate, t.endDate, t.notes || ''
-      ].map(escapeCSV).join(','));
-      const csvContent = '\uFEFF' + [headers, ...rows].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `google_sheets_import_${Date.now()}.csv`; a.click();
-    }
-  };
 
   const handleGoogleSync = async () => {
     if (!settings.googleSheetId) return alert("請先輸入 Google Sheet ID");
@@ -53,106 +27,115 @@ const SettingsView: React.FC<Props> = ({ settings, setSettings, tasks, setTasks,
     if (success) alert("✅ 同步完成！");
   };
 
+  const appsScriptTemplate = `function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  
+  if (data.action === 'sync_tasks') {
+    // 1. 清空舊資料 (保留第一行 Header)
+    if (sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+    
+    // 2. 轉換資料格式回試算表欄位
+    var rows = data.tasks.map(function(t) {
+      return [t.show, t.episode, t.editor, t.startDate, t.endDate, t.notes || ''];
+    });
+    
+    // 3. 寫入新資料
+    if (rows.length > 0) {
+      sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+    }
+    
+    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+  }
+}`;
+
   return (
     <div className="p-8 md:p-12 h-full overflow-y-auto bg-slate-50/30 custom-scrollbar flex flex-col max-w-6xl mx-auto">
-      <div className="mb-12 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-800 tracking-tight">外部資料與系統設定</h2>
-          <p className="text-slate-500 text-sm mt-1">串接外部 Google Sheets 作為資料來源，實現雲端排程管理</p>
-        </div>
+      <div className="mb-12">
+        <h2 className="text-3xl font-bold text-slate-800 tracking-tight">雲端同步與系統設定</h2>
+        <p className="text-slate-500 text-sm mt-1">建立 App 與 Google Sheets 之間的雙向橋樑</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         
-        <section className="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 shadow-sm flex flex-col relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Table size={120} className="text-emerald-900" />
-          </div>
-          
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="p-2 bg-emerald-600 text-white rounded-lg shadow-lg"><Table size={20} /></div>
-            <h3 className="text-lg font-bold text-emerald-900">Google Sheets 外部整合</h3>
+        {/* 左側：雙向同步設定 */}
+        <section className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-8 flex flex-col">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-500/20"><Link2 size={20} /></div>
+            <h3 className="text-lg font-bold text-slate-800 tracking-tight">雙向同步 (雲端回傳)</h3>
           </div>
 
-          <div className="space-y-6 flex-1 relative z-10">
+          <div className="space-y-6 flex-1">
             <div>
-              <label className="block text-[10px] font-black text-emerald-600/60 uppercase mb-2 tracking-widest flex items-center justify-between">
-                <span>試算表 ID (Spreadsheet ID)</span>
-                {settings.googleSheetId && (
-                  <a href={`https://docs.google.com/spreadsheets/d/${settings.googleSheetId}`} target="_blank" rel="noreferrer" className="flex items-center hover:underline">
-                    查看表單 <ExternalLink size={10} className="ml-1"/>
-                  </a>
-                )}
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">
+                1. 試算表 ID (唯讀來源)
               </label>
               <input 
                 placeholder="例如: 1FWZXvZjghfOjT8JkW..."
-                className="w-full bg-white border border-emerald-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 ring-emerald-500/10 focus:border-indigo-500 transition-all"
+                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-xs font-bold outline-none focus:ring-4 ring-indigo-500/10 focus:border-indigo-500 transition-all"
                 value={settings.googleSheetId || ''}
                 onChange={e => setSettings({...settings, googleSheetId: e.target.value})}
               />
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-emerald-100 space-y-3">
-              <p className="text-[11px] text-emerald-700 leading-relaxed">
-                <b>同步原理：</b>系統會從指定試算表的第一個工作表抓取資料。請確保試算表已開啟「發佈到網路」權限。
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-[10px] font-black text-orange-500 uppercase mb-2 tracking-widest flex items-center justify-between">
+                <span>2. 寫入代理 URL (Webhook URL)</span>
+                <span className="text-[8px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">高階功能</span>
+              </label>
+              <input 
+                placeholder="https://script.google.com/macros/s/.../exec"
+                className="w-full bg-orange-50/30 border border-orange-100 rounded-2xl px-5 py-3 text-xs font-bold outline-none focus:ring-4 ring-orange-500/10 focus:border-orange-500 transition-all"
+                value={settings.googleSheetWriteUrl || ''}
+                onChange={e => setSettings({...settings, googleSheetWriteUrl: e.target.value})}
+              />
+              <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                填入此 URL 後，當您在 App 修改排程時，Header 會出現橘色同步按鈕，將異動推回 Google Sheets。
               </p>
-              <button 
-                onClick={handleGoogleSync}
-                disabled={isSyncing}
-                className="w-full flex items-center justify-center space-x-2 py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-              >
-                {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                <span>從 Google Sheets 拉取資料</span>
-              </button>
             </div>
           </div>
+
+          <button 
+            onClick={handleGoogleSync}
+            disabled={isSyncing}
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center space-x-2 shadow-xl"
+          >
+            {isSyncing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            <span>僅執行「下載」同步 (Pull)</span>
+          </button>
         </section>
 
-        <section className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Database size={20} /></div>
-            <h3 className="text-lg font-bold text-slate-800">資料手動備份</h3>
+        {/* 右側：Apps Script 代碼與指南 */}
+        <section className="bg-slate-900 p-8 rounded-[40px] text-white space-y-6 flex flex-col">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-indigo-500 text-white rounded-xl"><Code2 size={20} /></div>
+            <h3 className="text-lg font-black tracking-tight italic">雙向同步指南</h3>
           </div>
-          
-          <div className="space-y-4 flex-1">
-            <div className="flex gap-4">
-              <button 
-                onClick={() => exportData('csv')}
-                className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200 group"
-              >
-                <FileText className="text-slate-400 group-hover:text-emerald-500 mb-2" size={24} />
-                <span className="text-xs font-bold text-slate-700">下載表單 CSV</span>
-                <span className="text-[9px] text-slate-400 mt-1">匯出後可上傳至 Google Sheet</span>
-              </button>
-            </div>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-               <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                 若要將此 App 的資料導入 Google Sheet，請下載 CSV 後，在試算表中選擇「檔案 &gt; 匯入 &gt; 上傳」，並選擇此 CSV 檔案。
-               </p>
-            </div>
+          <div className="space-y-4 text-xs leading-relaxed text-slate-400">
+            <p><span className="text-indigo-400 font-black">Step 1:</span> 開啟試算表，點擊「擴充功能 &gt; Apps Script」。</p>
+            <p><span className="text-indigo-400 font-black">Step 2:</span> 貼入下方代碼並點擊儲存。</p>
+            <p><span className="text-indigo-400 font-black">Step 3:</span> 點擊「部署 &gt; 新部署」，選「網頁應用程式」，並設為「任何人」可存取。</p>
+            <p><span className="text-indigo-400 font-black">Step 4:</span> 複製部署後的網址，貼回左側欄位。</p>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-4 font-mono text-[9px] text-indigo-300 border border-white/10 overflow-x-auto relative group">
+             <button 
+               onClick={() => { navigator.clipboard.writeText(appsScriptTemplate); alert("代碼已複製！"); }}
+               className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+             >
+               複製代碼
+             </button>
+             <pre>{appsScriptTemplate}</pre>
           </div>
         </section>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm mb-12">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Building size={20} /></div>
-          <h3 className="text-lg font-bold text-slate-800">基本空間設定</h3>
-        </div>
-        <div>
-          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">組織顯示名稱</label>
-          <input 
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-lg font-semibold outline-none focus:ring-2 ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            value={settings.companyName}
-            onChange={e => setSettings({...settings, companyName: e.target.value})}
-          />
-        </div>
-      </div>
-
-      <div className="mt-auto flex items-center justify-between opacity-30 py-8 border-t border-slate-100">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Build v2.6.9 - Final Stable</span>
-        <button onClick={onReset} className="text-[10px] font-bold text-red-400 uppercase tracking-widest hover:text-red-600">重置所有資料</button>
+      <div className="mt-auto opacity-30 py-8 border-t border-slate-200 flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em]">Build v2.7.5 - Bidirectional Alpha</span>
+        <button onClick={onReset} className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-600">重置本地快取</button>
       </div>
     </div>
   );
