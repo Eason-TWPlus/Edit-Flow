@@ -13,8 +13,8 @@ import SettingsView from './components/SettingsView.tsx';
 import StatsView from './components/StatsView.tsx';
 import { SHOWS, EDITORS, EDITOR_COLORS } from './constants.tsx';
 
-const V6_KEY = "EDITFLOW_V6_MASTER";
-const LEGACY_KEYS = ["EDITFLOW_V5_SURE_FIRE", "EDITFLOW_V4_FINAL_STABLE", "db_tasks_TWP_PRO_01"];
+const V7_KEY = "EDITFLOW_V7_STABLE";
+const LEGACY_KEYS = ["EDITFLOW_V6_MASTER", "EDITFLOW_V5_SURE_FIRE", "db_tasks_TWP_PRO_01"];
 
 const normalizeDateStr = (str: string): string => {
   if (!str) return new Date().toISOString().split('T')[0];
@@ -36,15 +36,15 @@ const App: React.FC = () => {
   const isResetting = useRef(false);
 
   const [appState, setAppState] = useState(() => {
-    const v6Raw = localStorage.getItem(V6_KEY);
-    let baseData = v6Raw ? JSON.parse(v6Raw) : null;
+    const raw = localStorage.getItem(V7_KEY);
+    let baseData = raw ? JSON.parse(raw) : null;
     if (!baseData || !baseData.tasks) {
       let rescuedTasks: Task[] = [];
       for (const key of LEGACY_KEYS) {
         try {
-          const raw = localStorage.getItem(key);
-          if (raw) {
-            const p = JSON.parse(raw);
+          const r = localStorage.getItem(key);
+          if (r) {
+            const p = JSON.parse(r);
             const t = Array.isArray(p) ? p : (p.tasks || []);
             if (t.length > rescuedTasks.length) rescuedTasks = t;
           }
@@ -72,57 +72,55 @@ const App: React.FC = () => {
 
   const updateAppState = useCallback((updater: (prev: typeof appState) => typeof appState, markPending = true) => {
     setAppState(prev => {
-      const next = updater(prev);
-      if (prev.tasks.length > 0 && next.tasks.length === 0 && !isResetting.current) return prev;
+      const updated = updater(prev);
+      if (prev.tasks.length > 0 && updated.tasks.length === 0 && !isResetting.current) return prev;
       
-      // 如果有資料異動且非同步動作，標記為 pending (需要 push)
-      if (markPending) {
-        next.settings.syncStatus = 'pending';
-      }
+      const next = {
+        ...updated,
+        settings: {
+          ...updated.settings,
+          syncStatus: markPending ? 'pending' : updated.settings.syncStatus
+        }
+      };
 
-      localStorage.setItem(V6_KEY, JSON.stringify(next));
+      localStorage.setItem(V7_KEY, JSON.stringify(next));
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
       return next;
     });
   }, []);
 
-  // --- 回傳資料到 Google Sheets ---
   const pushToGoogleSheets = async () => {
     if (!appState.settings.googleSheetWriteUrl) {
-      alert("尚未設定『寫入代理 URL』。請至系統設定配置 Google Apps Script 橋樑。");
+      alert("請至「系統設定」貼上 Google Apps Script 的『部署網址』才能進行雲端回傳。");
       return;
     }
 
     setIsPushing(true);
     try {
-      const response = await fetch(appState.settings.googleSheetWriteUrl, {
+      await fetch(appState.settings.googleSheetWriteUrl, {
         method: 'POST',
-        mode: 'no-cors', // Apps Script 通常需要 no-cors
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'sync_tasks',
-          tasks: appState.tasks
-        })
+        body: JSON.stringify({ action: 'sync_tasks', tasks: appState.tasks })
       });
 
-      // 因為 no-cors 無法讀取 response.ok，我們假定發出即成功，或請用戶觀察試算表
       updateAppState(prev => ({
         ...prev,
         settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() },
-        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '系統', timestamp: new Date().toISOString(), details: '已將最新排程推送至 Google Sheets' }, ...prev.activities].slice(0, 50)
+        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '手動將全數資料推送至雲端' }, ...prev.activities].slice(0, 50)
       }), false);
       
-      alert("同步請求已發出！請檢查試算表是否已更新。\n(註：Apps Script 回傳可能有數秒延遲)");
+      alert("同步成功！資料已推送到 Google Sheets。\n(註：若試算表未更新，請確認 Apps Script 部署設為『任何人』可存取)");
     } catch (e) {
-      alert("推送失敗：" + e.message);
+      alert("推送出錯：" + e.message);
     } finally {
       setIsPushing(false);
     }
   };
 
   const importFromGoogleSheets = async (sheetId: string) => {
-    if (!sheetId) return alert("請輸入 ID");
+    if (!sheetId) return;
     try {
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
       const res = await fetch(url);
@@ -155,12 +153,11 @@ const App: React.FC = () => {
       updateAppState(prev => ({
         ...prev,
         tasks: newTasks,
-        activities: [{ id: `s_${Date.now()}`, type: 'sync', userName: '系統', timestamp: new Date().toISOString(), details: `雲端同步成功：帶入 ${newTasks.length} 筆排程` }, ...prev.activities].slice(0, 50),
         settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }
-      }), false); // 下載資料後不需要 markPending
+      }), false);
       return true;
     } catch (e) {
-      alert("同步失敗：" + e.message);
+      alert("下載失敗：" + e.message);
       return false;
     }
   };
@@ -207,7 +204,7 @@ const App: React.FC = () => {
                 case 'stats': return <StatsView tasks={appState.tasks} editors={appState.editors} programs={appState.programs} />;
                 case 'team': return <MemberManager editors={appState.editors} setEditors={(e: any) => updateAppState(p => ({...p, editors: typeof e === 'function' ? e(p.editors) : e}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: typeof t === 'function' ? t(p.tasks) : t}))} />;
                 case 'programs': return <ProgramManager programs={appState.programs} setPrograms={(pr: any) => updateAppState(p => ({...p, programs: typeof pr === 'function' ? pr(p.programs) : pr}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: typeof t === 'function' ? t(p.tasks) : t}))} />;
-                case 'settings': return <SettingsView settings={appState.settings} setSettings={(s) => updateAppState(p => ({...p, settings: s}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: t}))} programs={appState.programs} setPrograms={(pr: any) => updateAppState(p => ({...p, programs: pr}))} editors={appState.editors} setEditors={(e: any) => updateAppState(p => ({...p, editors: e}))} onReset={() => { if(confirm('確定要清除本地所有快取並重新載入？')){ isResetting.current = true; localStorage.clear(); window.location.reload(); } }} onSyncGoogleSheets={importFromGoogleSheets} />;
+                case 'settings': return <SettingsView settings={appState.settings} setSettings={(s) => updateAppState(p => ({...p, settings: s}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: t}))} programs={appState.programs} setPrograms={(pr: any) => updateAppState(p => ({...p, programs: pr}))} editors={appState.editors} setEditors={(e: any) => updateAppState(p => ({...p, editors: e}))} onReset={() => { if(confirm('確定要清除本地所有快取並重新載入？')){ isResetting.current = true; localStorage.clear(); window.location.reload(); } }} onSyncGoogleSheets={importFromGoogleSheets} onPushToGoogleSheets={pushToGoogleSheets} isPushing={isPushing} />;
                 default: return null;
               }
             })()}
