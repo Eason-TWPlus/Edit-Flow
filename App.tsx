@@ -92,12 +92,13 @@ const App: React.FC = () => {
 
   const pushToGoogleSheets = async () => {
     if (!appState.settings.googleSheetWriteUrl) {
-      alert("請至「系統設定」貼上 Google Apps Script 的『部署網址』才能進行雲端回傳。");
+      alert("⚠️ 請先至『系統設定』貼上 Apps Script 的部署網址。");
       return;
     }
 
     setIsPushing(true);
     try {
+      // 這裡發送目前所有本地任務到雲端
       await fetch(appState.settings.googleSheetWriteUrl, {
         method: 'POST',
         mode: 'no-cors',
@@ -108,12 +109,12 @@ const App: React.FC = () => {
       updateAppState(prev => ({
         ...prev,
         settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() },
-        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '手動將全數資料推送至雲端' }, ...prev.activities].slice(0, 50)
+        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '已將全數排程同步回 Google Sheets' }, ...prev.activities].slice(0, 50)
       }), false);
       
-      alert("同步成功！資料已推送到 Google Sheets。\n(註：若試算表未更新，請確認 Apps Script 部署設為『任何人』可存取)");
+      alert("🚀 同步指令已發出！\n您的試算表應該會在幾秒內更新完成。");
     } catch (e) {
-      alert("推送出錯：" + e.message);
+      alert("同步過程發生錯誤：" + e.message);
     } finally {
       setIsPushing(false);
     }
@@ -126,7 +127,7 @@ const App: React.FC = () => {
       const res = await fetch(url);
       const csv = await res.text();
       const lines = csv.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) throw new Error("無效資料");
+      if (lines.length < 2) throw new Error("試算表尚無資料");
 
       const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
       const findCol = (keywords: string[]) => headers.findIndex(h => keywords.some(k => h.includes(k)));
@@ -194,6 +195,7 @@ const App: React.FC = () => {
           onRefresh={() => importFromGoogleSheets(appState.settings.googleSheetId || '')}
           onPush={pushToGoogleSheets}
           isPushing={isPushing}
+          googleSheetWriteUrl={appState.settings.googleSheetWriteUrl}
         />
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
           {currentView === 'calendar' && <FilterBar filters={filters} setFilters={setFilters} programs={appState.programs} editors={appState.editors} isMobile={isMobile} />}

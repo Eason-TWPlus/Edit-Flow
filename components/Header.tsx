@@ -18,11 +18,12 @@ interface Props {
   onRefresh?: () => void;
   onPush?: () => void;
   isPushing?: boolean;
+  googleSheetWriteUrl?: string; // 用於控制按鈕是否顯示
 }
 
 const Header: React.FC<Props> = ({ 
   companyName, isMobile, searchTerm, setSearchTerm, activities,
-  onAddTask, editors, syncStatus, lastSyncedAt, onRefresh, onPush, isPushing
+  onAddTask, editors, syncStatus, lastSyncedAt, onRefresh, onPush, isPushing, googleSheetWriteUrl
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -41,6 +42,11 @@ const Header: React.FC<Props> = ({
     paddingBottom: '16px'
   } : {};
 
+  // 只要有網址，就顯示同步按鈕
+  const showPushBtn = !!googleSheetWriteUrl;
+  // 是否處於「待同步」狀態
+  const isPending = syncStatus === 'pending';
+
   return (
     <header 
       style={headerStyle}
@@ -58,14 +64,19 @@ const Header: React.FC<Props> = ({
       </div>
       
       <div className="flex items-center space-x-2">
-        {syncStatus === 'pending' && (
+        {showPushBtn && (
           <button 
             onClick={onPush}
             disabled={isPushing}
-            className="flex items-center space-x-2 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20 animate-pulse transition-all"
+            title={isPending ? "偵測到本地異動，請同步回雲端" : "將目前排程強製推送至雲端"}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg transition-all ${
+              isPushing ? 'bg-slate-200 text-slate-400' : 
+              isPending ? 'bg-orange-500 text-white shadow-orange-500/20 animate-pulse' : 
+              'bg-slate-800 text-slate-300 hover:bg-black hover:text-white'
+            }`}
           >
             {isPushing ? <RefreshCw size={12} className="animate-spin" /> : <UploadCloud size={12} />}
-            {!isMobile && <span>同步回雲端</span>}
+            {!isMobile && <span>{isPending ? '同步回雲端' : '全數同步回雲端'}</span>}
           </button>
         )}
 
@@ -78,7 +89,7 @@ const Header: React.FC<Props> = ({
         <button 
           onClick={onRefresh}
           className={`p-2 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${syncStatus === 'syncing' ? 'opacity-50' : ''}`}
-          title="重新整理試算表"
+          title="重新下載雲端最新資料"
         >
           <RefreshCw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
         </button>
