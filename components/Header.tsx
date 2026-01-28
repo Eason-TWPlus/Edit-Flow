@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, Plus, Users, Cloud, X, Clock, Zap, Wifi, WifiOff, RefreshCw, AlertCircle, UploadCloud } from 'lucide-react';
+import { Search, Bell, ChevronDown, Plus, Users, Cloud, X, Clock, Zap, Wifi, WifiOff, RefreshCw, AlertCircle, UploadCloud, Settings } from 'lucide-react';
 import { Editor, Activity } from '../types.ts';
 import { formatDistanceToNow, format } from 'date-fns';
 import zhTW from 'date-fns/locale/zh-TW';
@@ -18,12 +18,13 @@ interface Props {
   onRefresh?: () => void;
   onPush?: () => void;
   isPushing?: boolean;
-  googleSheetWriteUrl?: string; // 用於控制按鈕是否顯示
+  googleSheetWriteUrl?: string; 
+  onGoToSettings?: () => void; // 新增：引導至設定頁面
 }
 
 const Header: React.FC<Props> = ({ 
   companyName, isMobile, searchTerm, setSearchTerm, activities,
-  onAddTask, editors, syncStatus, lastSyncedAt, onRefresh, onPush, isPushing, googleSheetWriteUrl
+  onAddTask, editors, syncStatus, lastSyncedAt, onRefresh, onPush, isPushing, googleSheetWriteUrl, onGoToSettings
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -42,9 +43,7 @@ const Header: React.FC<Props> = ({
     paddingBottom: '16px'
   } : {};
 
-  // 只要有網址，就顯示同步按鈕
-  const showPushBtn = !!googleSheetWriteUrl;
-  // 是否處於「待同步」狀態
+  const hasUrl = !!googleSheetWriteUrl;
   const isPending = syncStatus === 'pending';
 
   return (
@@ -64,21 +63,21 @@ const Header: React.FC<Props> = ({
       </div>
       
       <div className="flex items-center space-x-2">
-        {showPushBtn && (
-          <button 
-            onClick={onPush}
-            disabled={isPushing}
-            title={isPending ? "偵測到本地異動，請同步回雲端" : "將目前排程強製推送至雲端"}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg transition-all ${
-              isPushing ? 'bg-slate-200 text-slate-400' : 
-              isPending ? 'bg-orange-500 text-white shadow-orange-500/20 animate-pulse' : 
-              'bg-slate-800 text-slate-300 hover:bg-black hover:text-white'
-            }`}
-          >
-            {isPushing ? <RefreshCw size={12} className="animate-spin" /> : <UploadCloud size={12} />}
-            {!isMobile && <span>{isPending ? '同步回雲端' : '全數同步回雲端'}</span>}
-          </button>
-        )}
+        {/* 同步按鈕：現在改為常駐 */}
+        <button 
+          onClick={hasUrl ? onPush : onGoToSettings}
+          disabled={isPushing}
+          className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
+            isPushing ? 'bg-slate-200 text-slate-400' : 
+            !hasUrl ? 'bg-slate-100 text-slate-400 border border-dashed border-slate-300' :
+            isPending ? 'bg-orange-500 text-white shadow-orange-500/20 animate-pulse' : 
+            'bg-slate-800 text-slate-300 hover:bg-black hover:text-white'
+          }`}
+          title={!hasUrl ? "尚未配置同步網址，點擊前往設定" : isPending ? "有異動待同步" : "全數同步至雲端"}
+        >
+          {isPushing ? <RefreshCw size={12} className="animate-spin" /> : !hasUrl ? <AlertCircle size={12} className="text-orange-400" /> : <UploadCloud size={12} />}
+          {!isMobile && <span>{!hasUrl ? '設定同步網址' : isPending ? '立即同步回雲端' : '全數推送同步'}</span>}
+        </button>
 
         {isMobile && (
           <button onClick={onAddTask} className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg active:scale-95 transition-all">
@@ -89,7 +88,7 @@ const Header: React.FC<Props> = ({
         <button 
           onClick={onRefresh}
           className={`p-2 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${syncStatus === 'syncing' ? 'opacity-50' : ''}`}
-          title="重新下載雲端最新資料"
+          title="重新整理 (從雲端讀取)"
         >
           <RefreshCw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
         </button>

@@ -92,7 +92,8 @@ const App: React.FC = () => {
 
   const pushToGoogleSheets = async () => {
     if (!appState.settings.googleSheetWriteUrl) {
-      alert("⚠️ 請先至『系統設定』貼上 Apps Script 的部署網址。");
+      alert("⚠️ 請先至『系統設定』貼上 Apps Script 的部署網址才能同步。");
+      setCurrentView('settings');
       return;
     }
 
@@ -109,12 +110,12 @@ const App: React.FC = () => {
       updateAppState(prev => ({
         ...prev,
         settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() },
-        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '已將全數排程同步回 Google Sheets' }, ...prev.activities].slice(0, 50)
+        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '成功將本地排程推送至雲端' }, ...prev.activities].slice(0, 50)
       }), false);
       
-      alert("🚀 同步指令已發出！\n您的試算表應該會在幾秒內更新完成。");
+      alert("✅ 同步成功！\n資料已寫入您的 Google Sheets。");
     } catch (e) {
-      alert("同步過程發生錯誤：" + e.message);
+      alert("❌ 同步失敗：" + e.message);
     } finally {
       setIsPushing(false);
     }
@@ -127,7 +128,7 @@ const App: React.FC = () => {
       const res = await fetch(url);
       const csv = await res.text();
       const lines = csv.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) throw new Error("試算表尚無資料");
+      if (lines.length < 2) throw new Error("試算表尚無有效資料");
 
       const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
       const findCol = (keywords: string[]) => headers.findIndex(h => keywords.some(k => h.includes(k)));
@@ -196,6 +197,7 @@ const App: React.FC = () => {
           onPush={pushToGoogleSheets}
           isPushing={isPushing}
           googleSheetWriteUrl={appState.settings.googleSheetWriteUrl}
+          onGoToSettings={() => setCurrentView('settings')}
         />
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
           {currentView === 'calendar' && <FilterBar filters={filters} setFilters={setFilters} programs={appState.programs} editors={appState.editors} isMobile={isMobile} />}
