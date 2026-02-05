@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Task, Program, Editor, FilterState, WorkspaceSettings, Activity } from './types.ts';
+import { Task, Program, Editor, FilterState, WorkspaceSettings, Activity, FirebaseConfig } from './types.ts';
 import Sidebar from './components/Sidebar.tsx';
 import MobileNav from './components/MobileNav.tsx';
 import Header from './components/Header.tsx';
@@ -13,162 +13,116 @@ import SettingsView from './components/SettingsView.tsx';
 import StatsView from './components/StatsView.tsx';
 import { SHOWS, EDITORS, EDITOR_COLORS } from './constants.tsx';
 
-const V7_KEY = "EDITFLOW_V7_STABLE";
-const LEGACY_KEYS = ["EDITFLOW_V6_MASTER", "EDITFLOW_V5_SURE_FIRE", "db_tasks_TWP_PRO_01"];
+// Firebase Imports
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, writeBatch, Firestore } from 'firebase/firestore';
 
-const normalizeDateStr = (str: string): string => {
-  if (!str) return new Date().toISOString().split('T')[0];
-  const clean = str.trim().split(' ')[0];
-  const parts = clean.split(/[/.-]/);
-  if (parts.length === 3) {
-    let y = parts[0], m = parts[1], d = parts[2];
-    if (y.length <= 2 && d.length === 4) [y, m, d] = [d, y, m];
-    if (y.length === 2) y = "20" + y;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : new Date().toISOString().split('T')[0];
-};
+const V8_KEY = "EDITFLOW_V8_FIREBASE_PRO";
 
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [isPushing, setIsPushing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const isResetting = useRef(false);
+  const dbRef = useRef<Firestore | null>(null);
 
+  // 1. 初始化狀態 (優先讀取 LocalStorage 以防離線)
   const [appState, setAppState] = useState(() => {
-    const raw = localStorage.getItem(V7_KEY);
-    let baseData = raw ? JSON.parse(raw) : null;
-    if (!baseData || !baseData.tasks) {
-      let rescuedTasks: Task[] = [];
-      for (const key of LEGACY_KEYS) {
-        try {
-          const r = localStorage.getItem(key);
-          if (r) {
-            const p = JSON.parse(r);
-            const t = Array.isArray(p) ? p : (p.tasks || []);
-            if (t.length > rescuedTasks.length) rescuedTasks = t;
-          }
-        } catch(e) {}
-      }
-      baseData = { tasks: rescuedTasks };
-    }
+    const raw = localStorage.getItem(V8_KEY);
+    const baseData = raw ? JSON.parse(raw) : null;
 
     return {
-      tasks: baseData.tasks || [],
-      activities: baseData.activities || [],
-      programs: baseData.programs || SHOWS.map(s => ({ 
+      tasks: baseData?.tasks || [],
+      activities: baseData?.activities || [],
+      programs: baseData?.programs || SHOWS.map(s => ({ 
         id: s.toLowerCase().replace(/\s+/g, '-'), name: s, updatedAt: new Date().toISOString(), priority: 'Medium', duration: '24:00', description: '' 
       })),
-      editors: baseData.editors || EDITORS.map(e => ({ 
+      editors: baseData?.editors || EDITORS.map(e => ({ 
         id: e.toLowerCase(), name: e, color: EDITOR_COLORS[e] || '#cbd5e1', updatedAt: new Date().toISOString(), role: 'Editor', notes: '' 
       })),
-      settings: baseData.settings || { 
-        id: "TWP_PRO_01", companyName: 'TaiwanPlus', workingDays: [1,2,3,4,5], syncStatus: 'synced', lastSyncedAt: new Date().toISOString(), 
-        googleSheetId: "1FWZXvZjghfOjT8JkW-SGZMrLCP3oyI7K3I71kEUmc1w",
-        googleSheetWriteUrl: ""
+      settings: baseData?.settings || { 
+        id: "TWP_PRO_01", companyName: 'TaiwanPlus', workingDays: [1,2,3,4,5], syncStatus: 'offline', lastSyncedAt: new Date().toISOString(), 
+        useFirebase: false
       }
     };
   });
 
-  const updateAppState = useCallback((updater: (prev: typeof appState) => typeof appState, markPending = true) => {
-    setAppState(prev => {
-      const updated = updater(prev);
-      if (prev.tasks.length > 0 && updated.tasks.length === 0 && !isResetting.current) return prev;
-      
-      const next = {
-        ...updated,
-        settings: {
-          ...updated.settings,
-          syncStatus: markPending ? 'pending' : updated.settings.syncStatus
-        }
-      };
-
-      localStorage.setItem(V7_KEY, JSON.stringify(next));
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-      return next;
-    });
-  }, []);
-
-  const pushToGoogleSheets = async () => {
-    if (!appState.settings.googleSheetWriteUrl) {
-      alert("⚠️ 請先至『系統設定』貼上 Apps Script 的部署網址才能同步。");
-      setCurrentView('settings');
-      return;
-    }
-
-    setIsPushing(true);
-    try {
-      // 這裡發送目前所有本地任務到雲端
-      await fetch(appState.settings.googleSheetWriteUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_tasks', tasks: appState.tasks })
-      });
-
-      updateAppState(prev => ({
-        ...prev,
-        settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() },
-        activities: [{ id: `p_${Date.now()}`, type: 'push', userName: '您', timestamp: new Date().toISOString(), details: '成功將本地排程推送至雲端' }, ...prev.activities].slice(0, 50)
-      }), false);
-      
-      alert("✅ 同步成功！\n資料已寫入您的 Google Sheets。");
-    } catch (e) {
-      alert("❌ 同步失敗：" + e.message);
-    } finally {
-      setIsPushing(false);
-    }
-  };
-
-  const importFromGoogleSheets = async (sheetId: string) => {
-    if (!sheetId) return;
-    try {
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0&t=${Date.now()}`;
-      const res = await fetch(url);
-      const csv = await res.text();
-      const lines = csv.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length < 2) throw new Error("試算表尚無有效資料");
-
-      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
-      const findCol = (keywords: string[]) => headers.findIndex(h => keywords.some(k => h.includes(k)));
-      const idxShow = findCol(['節目', 'show', 'program', 'name']);
-      const idxEp = findCol(['集數', 'ep', 'episode', 'no']);
-      const idxEd = findCol(['剪輯', 'editor', '負責', 'owner']);
-      const idxStart = findCol(['開始', 'start', '日期', 'date']);
-      const idxEnd = findCol(['交播', '結束', 'end', 'due', '完成', '交付']);
-
-      const newTasks: Task[] = lines.slice(1).map((line, i) => {
-        const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(c => c.replace(/"/g, '').trim()) || line.split(',');
-        return {
-          id: `gs_${Date.now()}_${i}`,
-          show: cols[idxShow] || '未分類',
-          episode: cols[idxEp] || 'N/A',
-          editor: cols[idxEd] || 'James',
-          startDate: normalizeDateStr(cols[idxStart] || ""),
-          endDate: normalizeDateStr(cols[idxEnd] || cols[idxStart] || ""),
-          lastEditedAt: new Date().toISOString(),
-          version: 1
-        };
-      });
-
-      updateAppState(prev => ({
-        ...prev,
-        tasks: newTasks,
-        settings: { ...prev.settings, syncStatus: 'synced', lastSyncedAt: new Date().toISOString() }
-      }), false);
-      return true;
-    } catch (e) {
-      alert("下載失敗：" + e.message);
-      return false;
-    }
-  };
-
+  // 2. Firebase 全域同步引擎
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    const config = appState.settings.firebaseConfig;
+    if (appState.settings.useFirebase && config?.apiKey) {
+      try {
+        const app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+        const db = getFirestore(app);
+        dbRef.current = db;
+
+        console.log("🔥 Firebase Firestore 已啟動...");
+
+        // 同時監聽三個主要的集合
+        const unsubTasks = onSnapshot(query(collection(db, "tasks")), (snap) => {
+          const items: Task[] = [];
+          snap.forEach(d => items.push(d.data() as Task));
+          if (items.length > 0) setAppState(p => ({ ...p, tasks: items, settings: { ...p.settings, syncStatus: 'synced' } }));
+        });
+
+        const unsubProgs = onSnapshot(query(collection(db, "programs")), (snap) => {
+          const items: Program[] = [];
+          snap.forEach(d => items.push(d.data() as Program));
+          if (items.length > 0) setAppState(p => ({ ...p, programs: items }));
+        });
+
+        const unsubEditors = onSnapshot(query(collection(db, "editors")), (snap) => {
+          const items: Editor[] = [];
+          snap.forEach(d => items.push(d.data() as Editor));
+          if (items.length > 0) setAppState(p => ({ ...p, editors: items }));
+        });
+
+        return () => { unsubTasks(); unsubProgs(); unsubEditors(); };
+      } catch (e) {
+        console.error("Firebase 連線錯誤:", e);
+        setAppState(p => ({ ...p, settings: { ...p.settings, syncStatus: 'error' } }));
+      }
+    }
+  }, [appState.settings.useFirebase, appState.settings.firebaseConfig]);
+
+  // 3. 自動持久化至 LocalStorage (Local-First 策略)
+  useEffect(() => {
+    if (!isResetting.current) {
+      localStorage.setItem(V8_KEY, JSON.stringify(appState));
+    }
+  }, [appState]);
+
+  // 4. Firestore 雲端寫入操作
+  const syncToCloud = async (collectionName: string, id: string, data: any) => {
+    if (!dbRef.current || !appState.settings.useFirebase) return;
+    try {
+      await setDoc(doc(dbRef.current, collectionName, id), data);
+    } catch (e) { console.error(`雲端儲存失敗 (${collectionName}):`, e); }
+  };
+
+  const deleteFromCloud = async (collectionName: string, id: string) => {
+    if (!dbRef.current || !appState.settings.useFirebase) return;
+    try {
+      await deleteDoc(doc(dbRef.current, collectionName, id));
+    } catch (e) { console.error(`雲端刪除失敗 (${collectionName}):`, e); }
+  };
+
+  // 一鍵初始化雲端資料庫
+  const pushAllToCloud = async () => {
+    if (!dbRef.current) return alert("請先正確配置 Firebase 並開啟連線");
+    setIsSyncing(true);
+    try {
+      const batch = writeBatch(dbRef.current);
+      appState.tasks.forEach(t => batch.set(doc(dbRef.current!, "tasks", t.id), t));
+      appState.programs.forEach(p => batch.set(doc(dbRef.current!, "programs", p.id), p));
+      appState.editors.forEach(e => batch.set(doc(dbRef.current!, "editors", e.id), e));
+      await batch.commit();
+      alert("✅ 已成功將本地資料同步至雲端庫");
+    } catch (e) {
+      alert("❌ 同步失敗: " + e.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const [currentView, setCurrentView] = useState('calendar');
   const [searchTerm, setSearchTerm] = useState('');
@@ -193,10 +147,8 @@ const App: React.FC = () => {
           companyName={appState.settings.companyName} isMobile={isMobile} searchTerm={searchTerm} setSearchTerm={setSearchTerm}
           activities={appState.activities} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }}
           editors={appState.editors} syncStatus={appState.settings.syncStatus} lastSyncedAt={appState.settings.lastSyncedAt}
-          onRefresh={() => importFromGoogleSheets(appState.settings.googleSheetId || '')}
-          onPush={pushToGoogleSheets}
-          isPushing={isPushing}
-          googleSheetWriteUrl={appState.settings.googleSheetWriteUrl}
+          onPush={pushAllToCloud} isPushing={isSyncing}
+          googleSheetWriteUrl={appState.settings.useFirebase ? "FIREBASE_ACTIVE" : ""}
           onGoToSettings={() => setCurrentView('settings')}
         />
         <div className={`${isMobile ? 'px-2 pb-20' : 'px-8 pb-8'} flex-1 overflow-hidden flex flex-col`}>
@@ -206,9 +158,29 @@ const App: React.FC = () => {
               switch(currentView) {
                 case 'calendar': return <CalendarView tasks={filteredTasks} onEditTask={(t) => { setEditingTask(t); setIsModalOpen(true); }} editors={appState.editors} isMobile={isMobile} />;
                 case 'stats': return <StatsView tasks={appState.tasks} editors={appState.editors} programs={appState.programs} />;
-                case 'team': return <MemberManager editors={appState.editors} setEditors={(e: any) => updateAppState(p => ({...p, editors: typeof e === 'function' ? e(p.editors) : e}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: typeof t === 'function' ? t(p.tasks) : t}))} />;
-                case 'programs': return <ProgramManager programs={appState.programs} setPrograms={(pr: any) => updateAppState(p => ({...p, programs: typeof pr === 'function' ? pr(p.programs) : pr}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: typeof t === 'function' ? t(p.tasks) : t}))} />;
-                case 'settings': return <SettingsView settings={appState.settings} setSettings={(s) => updateAppState(p => ({...p, settings: s}))} tasks={appState.tasks} setTasks={(t: any) => updateAppState(p => ({...p, tasks: t}))} programs={appState.programs} setPrograms={(pr: any) => updateAppState(p => ({...p, programs: pr}))} editors={appState.editors} setEditors={(e: any) => updateAppState(p => ({...p, editors: e}))} onReset={() => { if(confirm('確定要清除本地所有快取並重新載入？')){ isResetting.current = true; localStorage.clear(); window.location.reload(); } }} onSyncGoogleSheets={importFromGoogleSheets} onPushToGoogleSheets={pushToGoogleSheets} isPushing={isPushing} />;
+                case 'team': return <MemberManager editors={appState.editors} tasks={appState.tasks} 
+                  setEditors={(e: any) => {
+                    const next = typeof e === 'function' ? e(appState.editors) : e;
+                    setAppState(p => ({ ...p, editors: next }));
+                    next.forEach((ed: any) => syncToCloud("editors", ed.id, ed));
+                  }} 
+                  setTasks={(t: any) => {
+                    const next = typeof t === 'function' ? t(appState.tasks) : t;
+                    setAppState(p => ({ ...p, tasks: next }));
+                  }} 
+                />;
+                case 'programs': return <ProgramManager programs={appState.programs} tasks={appState.tasks}
+                  setPrograms={(pr: any) => {
+                    const next = typeof pr === 'function' ? pr(appState.programs) : pr;
+                    setAppState(p => ({ ...p, programs: next }));
+                    next.forEach((pgr: any) => syncToCloud("programs", pgr.id, pgr));
+                  }} 
+                  setTasks={(t: any) => {
+                    const next = typeof t === 'function' ? t(appState.tasks) : t;
+                    setAppState(p => ({ ...p, tasks: next }));
+                  }} 
+                />;
+                case 'settings': return <SettingsView settings={appState.settings} setSettings={(s) => setAppState(p => ({...p, settings: s}))} tasks={appState.tasks} setTasks={(t: any) => setAppState(p => ({...p, tasks: t}))} programs={appState.programs} setPrograms={(pr: any) => setAppState(p => ({...p, programs: pr}))} editors={appState.editors} setEditors={(e: any) => setAppState(p => ({...p, editors: e}))} onReset={() => { if(confirm('確定要清空所有資料？')){ isResetting.current = true; localStorage.clear(); window.location.reload(); } }} onSyncGoogleSheets={async () => true} onPushToGoogleSheets={pushAllToCloud} isPushing={isSyncing} />;
                 default: return null;
               }
             })()}
@@ -221,22 +193,22 @@ const App: React.FC = () => {
           task={editingTask} programs={appState.programs} editors={appState.editors} isMobile={isMobile}
           onClose={() => { setEditingTask(null); setIsModalOpen(false); }}
           onSave={(t) => {
-            updateAppState(prev => {
-              const isUp = prev.tasks.some(x => x.id === t.id);
-              return {
-                ...prev,
-                tasks: isUp ? prev.tasks.map(x => x.id === t.id ? t : x) : [...prev.tasks, t],
-                activities: [{ id: `a_${Date.now()}`, type: isUp ? 'update' : 'create', userName: '您', timestamp: new Date().toISOString(), details: `${isUp ? '變更' : '新增'}: ${t.show} ${t.episode}` }, ...prev.activities].slice(0, 50)
-              };
-            });
+            const isUp = appState.tasks.some(x => x.id === t.id);
+            setAppState(prev => ({
+              ...prev,
+              tasks: isUp ? prev.tasks.map(x => x.id === t.id ? t : x) : [...prev.tasks, t],
+              activities: [{ id: `a_${Date.now()}`, type: isUp ? 'update' : 'create', userName: '您', timestamp: new Date().toISOString(), details: `${isUp ? '變更' : '新增'}: ${t.show} ${t.episode}` }, ...prev.activities].slice(0, 50)
+            }));
+            syncToCloud("tasks", t.id, t);
             setIsModalOpen(false);
           }}
           onDelete={(id) => {
-            updateAppState(prev => ({
+            setAppState(prev => ({
               ...prev,
               tasks: prev.tasks.filter(x => x.id !== id),
               activities: [{ id: `a_${Date.now()}`, type: 'delete', userName: '您', timestamp: new Date().toISOString(), details: '移除排程' }, ...prev.activities].slice(0, 50)
             }));
+            deleteFromCloud("tasks", id);
             setIsModalOpen(false);
           }}
         />

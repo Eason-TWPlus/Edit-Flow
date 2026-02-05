@@ -48,12 +48,21 @@ export interface FilterState {
   editors: string[];
 }
 
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
 export interface WorkspaceSettings {
   id: string;
   companyName: string;
   workingDays: number[];
   syncStatus: 'synced' | 'syncing' | 'offline' | 'error' | 'pending';
   lastSyncedAt?: string;
-  googleSheetId?: string;
-  googleSheetWriteUrl?: string; // 雙向同步的 Webhook URL
+  firebaseConfig?: FirebaseConfig;
+  useFirebase: boolean;
 }
